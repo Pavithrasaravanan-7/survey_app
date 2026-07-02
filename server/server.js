@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { query, waitForDb } from './db.js';
@@ -294,11 +295,16 @@ app.post('/api/attendance', async (req, res) => {
 
 // ═════════════════════ SERVE FRONTEND (production build) ═════════════════════
 const distPath = path.join(__dirname, '..', 'dist');
-app.use(express.static(distPath));
-
-app.get(/^(?!\/api).*/, (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('Backend service is running. Frontend is not served from this backend.');
+  });
+}
 
 async function startServer() {
   await waitForDb();
