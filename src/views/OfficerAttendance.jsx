@@ -31,6 +31,31 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const normalizeDate = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+    }
+    return String(value);
+  };
+
+  const normalizeAttendanceRecord = (record) => ({
+    ...record,
+    id: Number(record.id),
+    offId: Number(record.offId ?? record.off_id),
+    date: normalizeDate(record.date),
+    presentTime: record.presentTime ?? record.present_time ?? '',
+    remarks: record.remarks ?? '',
+    lat: record.lat ?? '',
+    lng: record.lng ?? '',
+    ts: record.ts ?? '',
+  });
+
   // Backend states
   const [trackPoints, setTrackPoints] = useState({});
   const [visitsList, setVisitsList] = useState([]);
@@ -45,7 +70,8 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
       setTrackPoints(tr);
       setVisitsList(vis);
 
-      const list = att.filter((a) => a.offId === user.id);
+      const normalizedAtt = (att || []).map(normalizeAttendanceRecord);
+      const list = normalizedAtt.filter((a) => Number(a.offId) === Number(user.id));
       setHistory(list);
 
       const todayRec = list.find((a) => a.date === todayStr);
@@ -314,9 +340,9 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
     routeLayersRef.current.forEach((layer) => map.removeLayer(layer));
     routeLayersRef.current = [];
 
-    const trackData = trackPoints[user.id];
-    const pts = (trackData?.pts || []).filter((p) => p.ts.startsWith(todayStr));
-    const visits = visitsList.filter((v) => v.offId === user.id && v.date === todayStr);
+    const trackData = trackPoints[Number(user.id)];
+    const pts = (trackData?.pts || []).filter((p) => p.ts && p.ts.startsWith(todayStr));
+    const visits = visitsList.filter((v) => Number(v.offId ?? v.off_id) === Number(user.id) && normalizeDate(v.date) === todayStr);
 
     const latlngs = pts.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
 
@@ -436,9 +462,9 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
 
   // Compile timeline waypoint list
   const getTimelineWaypoints = () => {
-    const trackData = trackPoints[user.id];
-    const pts = (trackData?.pts || []).filter((p) => p.ts.startsWith(todayStr));
-    const visits = visitsList.filter((v) => v.offId === user.id && v.date === todayStr);
+    const trackData = trackPoints[Number(user.id)];
+    const pts = (trackData?.pts || []).filter((p) => p.ts && p.ts.startsWith(todayStr));
+    const visits = visitsList.filter((v) => Number(v.offId ?? v.off_id) === Number(user.id) && normalizeDate(v.date) === todayStr);
 
     const items = [
       ...pts.map((p) => ({
