@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { query } from './db.js';
+import { query, waitForDb } from './db.js';
 import { ensureSchema } from './initDb.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -300,13 +300,15 @@ app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-ensureSchema()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Survey Backend Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('❌ Failed to apply database schema, exiting:', err);
-    process.exit(1);
+async function startServer() {
+  await waitForDb();
+  await ensureSchema();
+  app.listen(PORT, () => {
+    console.log(`🚀 Survey Backend Server running on port ${PORT}`);
   });
+}
+
+startServer().catch((err) => {
+  console.error('❌ Failed to apply database schema or connect to PostgreSQL, exiting:', err);
+  process.exit(1);
+});
