@@ -13,6 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = [
+  'https://survey-app-seven-sand.vercel.app',
   'https://survey-app-newdev3.vercel.app',
   'https://survey-app-7h98.onrender.com',
   'http://localhost:5173',
