@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://survey-app-7h98.onrender.com/api');
 
 export const DB = {
   async login(username, password, role) {
