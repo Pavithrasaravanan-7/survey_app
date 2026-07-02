@@ -7,6 +7,7 @@ services:
     name: survey-app
     env: node
     plan: free
+    root: server
     buildCommand: "npm install && npm run build"
     startCommand: "npm start"
     envVars:
