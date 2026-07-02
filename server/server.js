@@ -279,12 +279,23 @@ app.delete('/api/alerts', async (req, res) => {
 });
 
 // ═════════════════════ ATTENDANCE API ═════════════════════
+const rowToAttendance = (a) => ({
+  id: Number(a.id),
+  offId: a.off_id,
+  offName: a.off_name,
+  date: a.date,
+  status: a.status,
+  presentTime: a.present_time,
+  remarks: a.remarks,
+  photo: a.photo,
+  lat: a.lat,
+  lng: a.lng,
+  ts: a.ts,
+});
+
 app.get('/api/attendance', async (req, res) => {
   const { rows } = await query(`SELECT * FROM attendance ORDER BY date DESC`);
-  res.json(rows.map((a) => ({
-    id: Number(a.id), offId: a.off_id, offName: a.off_name, date: a.date, status: a.status,
-    presentTime: a.present_time, remarks: a.remarks, lat: a.lat, lng: a.lng, ts: a.ts,
-  })));
+  res.json(rows.map(rowToAttendance));
 });
 
 app.post('/api/attendance', async (req, res) => {
@@ -297,18 +308,15 @@ app.post('/api/attendance', async (req, res) => {
   const ts = record.ts || new Date().toISOString();
 
   const { rows } = await query(
-    `INSERT INTO attendance (id, off_id, off_name, date, status, present_time, remarks, lat, lng, ts)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `INSERT INTO attendance (id, off_id, off_name, date, status, present_time, remarks, photo, lat, lng, ts)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
      ON CONFLICT (off_id, date) DO UPDATE SET
-       status=$5, present_time=$6, remarks=$7, lat=$8, lng=$9, ts=$10
+       status=$5, present_time=$6, remarks=$7, photo=$8, lat=$9, lng=$10, ts=$11
      RETURNING *`,
-    [id, record.offId, record.offName, record.date, record.status, record.presentTime, record.remarks, record.lat, record.lng, ts]
+    [id, record.offId, record.offName, record.date, record.status, record.presentTime, record.remarks, record.photo || null, record.lat, record.lng, ts]
   );
   const a = rows[0];
-  res.json({
-    id: Number(a.id), offId: a.off_id, offName: a.off_name, date: a.date, status: a.status,
-    presentTime: a.present_time, remarks: a.remarks, lat: a.lat, lng: a.lng, ts: a.ts,
-  });
+  res.json(rowToAttendance(a));
 });
 
 // ═════════════════════ SERVE FRONTEND (production build) ═════════════════════

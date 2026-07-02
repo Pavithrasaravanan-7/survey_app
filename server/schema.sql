@@ -73,11 +73,13 @@ CREATE TABLE IF NOT EXISTS attendance (
   status        TEXT NOT NULL,
   present_time  TEXT,
   remarks       TEXT,
+  photo         TEXT,
   lat           TEXT,
   lng           TEXT,
   ts            TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(off_id, date)
 );
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS photo TEXT;
 
 CREATE TABLE IF NOT EXISTS permissions (
   id        BIGINT PRIMARY KEY,
