@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Survey Application</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bl:#1a56db;--bld:#1e429f;--bll:#ebf5ff;
+  --gn:#057a55;--gnl:#def7ec;
+  --am:#d97706;--aml:#fef3c7;
+  --rd:#e02424;--rdl:#fde8e8;
+  --tl:#0694a2;
+  --bg:#f0f4f8;--txt:#111827;--mu:#6b7280;--br:#e5e7eb;
+  --sb:#1e293b;--sw:250px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+
+/* ───── BUBBLE BACKGROUND ───── */
+.bbl-bg{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:0}
+.bbl{position:absolute;bottom:-200px;border-radius:50%;animation:rise linear infinite;opacity:0}
+@keyframes rise{
+  0%{transform:translateY(0) scale(.7) rotate(0deg);opacity:0}
+  8%{opacity:.55}
+  92%{opacity:.15}
+  100%{transform:translateY(-115vh) scale(1.4) rotate(20deg);opacity:0}
+}
+/* 20 bubbles - sizes and positions */
+.bbl:nth-child(1){left:5%;width:60px;height:60px;animation-duration:9s;animation-delay:0s;background:rgba(26,86,219,.12)}
+.bbl:nth-child(2){left:15%;width:100px;height:100px;animation-duration:13s;animation-delay:1.5s;background:rgba(6,148,162,.1)}
+.bbl:nth-child(3){left:25%;width:45px;height:45px;animation-duration:8s;animation-delay:3s;background:rgba(5,122,85,.12)}
+.bbl:nth-child(4){left:35%;width:130px;height:130px;animation-duration:16s;animation-delay:.5s;background:rgba(26,86,219,.07)}
+.bbl:nth-child(5){left:45%;width:70px;height:70px;animation-duration:11s;animation-delay:2s;background:rgba(6,148,162,.12)}
+.bbl:nth-child(6){left:55%;width:90px;height:90px;animation-duration:14s;animation-delay:4s;background:rgba(217,119,6,.08)}
+.bbl:nth-child(7){left:65%;width:55px;height:55px;animation-duration:9s;animation-delay:1s;background:rgba(26,86,219,.1)}
+.bbl:nth-child(8){left:75%;width:110px;height:110px;animation-duration:12s;animation-delay:3.5s;background:rgba(5,122,85,.09)}
+.bbl:nth-child(9){left:85%;width:75px;height:75px;animation-duration:10s;animation-delay:.8s;background:rgba(6,148,162,.11)}
+.bbl:nth-child(10){left:92%;width:50px;height:50px;animation-duration:8s;animation-delay:2.5s;background:rgba(26,86,219,.13)}
+.bbl:nth-child(11){left:8%;width:85px;height:85px;animation-duration:15s;animation-delay:5s;background:rgba(5,122,85,.1)}
+.bbl:nth-child(12){left:28%;width:40px;height:40px;animation-duration:7s;animation-delay:1.2s;background:rgba(217,119,6,.12)}
+.bbl:nth-child(13){left:42%;width:120px;height:120px;animation-duration:17s;animation-delay:3.8s;background:rgba(26,86,219,.06)}
+.bbl:nth-child(14){left:60%;width:65px;height:65px;animation-duration:10s;animation-delay:.3s;background:rgba(6,148,162,.13)}
+.bbl:nth-child(15){left:72%;width:95px;height:95px;animation-duration:13s;animation-delay:2.8s;background:rgba(5,122,85,.08)}
+.bbl:nth-child(16){left:18%;width:30px;height:30px;animation-duration:6s;animation-delay:4.5s;background:rgba(26,86,219,.15)}
+.bbl:nth-child(17){left:50%;width:80px;height:80px;animation-duration:11s;animation-delay:1.8s;background:rgba(217,119,6,.09)}
+.bbl:nth-child(18){left:80%;width:45px;height:45px;animation-duration:8.5s;animation-delay:.6s;background:rgba(26,86,219,.11)}
+.bbl:nth-child(19){left:38%;width:105px;height:105px;animation-duration:14.5s;animation-delay:5.5s;background:rgba(6,148,162,.08)}
+.bbl:nth-child(20){left:95%;width:60px;height:60px;animation-duration:9.5s;animation-delay:3.2s;background:rgba(5,122,85,.12)}
+
+/* ───── LOGIN BUBBLES ───── */
+.lbbl-bg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:0}
+.lbbl{position:absolute;bottom:-200px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.38),rgba(255,255,255,.06));
+  border:1px solid rgba(255,255,255,.28);animation:lrise linear infinite;
+  box-shadow:inset 0 0 24px rgba(255,255,255,.12)}
+@keyframes lrise{
+  0%{transform:translateY(0) scale(.55) rotate(0deg);opacity:0}
+  8%{opacity:1}
+  50%{transform:translateY(-52vh) scale(1.0) rotate(12deg)}
+  92%{opacity:.35}
+  100%{transform:translateY(-118vh) scale(1.35) rotate(28deg);opacity:0}
+}
+
+/* ───── SCREENS ───── */
+.screen{display:none;min-height:100vh;position:relative;z-index:1}
+.screen.active{display:block}
+#sl.active{display:flex;align-items:center;justify-content:center;padding:20px;
+  background:linear-gradient(135deg,#1845c8 0%,#0a7ea0 100%);position:relative;overflow:hidden}
+
+/* ───── LOGIN ───── */
+.lcard{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);border-radius:20px;
+  padding:38px;width:100%;max-width:420px;box-shadow:0 30px 80px rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.4);position:relative;z-index:2}
+.llogo{text-align:center;margin-bottom:24px}
+.lico{width:64px;height:64px;background:linear-gradient(135deg,var(--bl),var(--tl));
+  border-radius:16px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:28px;margin-bottom:11px;box-shadow:0 8px 24px rgba(26,86,219,.35)}
+.llogo h1{font-size:21px;font-weight:700;background:linear-gradient(135deg,var(--bl),var(--tl));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.llogo p{font-size:12px;color:var(--mu);margin-top:2px}
+.rtabs{display:flex;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:22px}
+.rtab{flex:1;padding:9px;border:none;background:transparent;border-radius:9px;
+  font-size:13px;font-weight:500;cursor:pointer;color:var(--mu);transition:.2s}
+.rtab.on{background:#fff;color:var(--bl);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.hint{font-size:11.5px;background:linear-gradient(135deg,var(--bll),rgba(222,247,236,.6));
+  padding:10px 12px;border-radius:10px;margin-top:14px;color:var(--mu);text-align:center;
+  border:1px solid rgba(26,86,219,.12)}
+
+/* ───── APP LAYOUT ───── */
+.app{display:flex;min-height:100vh}
+.sb{width:var(--sw);background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);
+  color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;
+  height:100vh;z-index:200;overflow-y:auto;
+  box-shadow:4px 0 24px rgba(0,0,0,.25)}
+.sbh{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04)}
+.appn{font-size:15px;font-weight:800;background:linear-gradient(135deg,#60a5fa,#34d399);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.apps{font-size:10.5px;color:rgba(255,255,255,.4);margin-top:2px}
+.sbu{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.ava{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:700;color:#fff;margin-bottom:7px;
+  box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.unam{font-size:13.5px;font-weight:600}
+.urol{font-size:10px;color:rgba(255,255,255,.4);background:rgba(255,255,255,.08);
+  padding:2px 9px;border-radius:10px;display:inline-block;margin-top:4px}
+.sbn{flex:1;padding:10px 8px}
+.sbsec{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);
+  padding:10px 10px 4px}
+.ni{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  cursor:pointer;color:rgba(255,255,255,.6);font-size:13px;font-weight:500;
+  transition:.15s;margin-bottom:2px}
+.ni:hover{background:rgba(255,255,255,.08);color:#fff}
+.ni.on{background:linear-gradient(135deg,var(--bl),var(--tl));color:#fff;
+  box-shadow:0 4px 12px rgba(26,86,219,.4)}
+.sbf{padding:12px;border-top:1px solid rgba(255,255,255,.07)}
+.lbtn{width:100%;padding:10px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;color:rgba(255,255,255,.6);
+  cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;
+  gap:8px;transition:.15s}
+.lbtn:hover{background:var(--rd);color:#fff;border-color:var(--rd)}
+.mn{margin-left:var(--sw);flex:1;min-height:100vh}
+
+/* ───── PAGE HEADER ───── */
+.ph{background:rgba(255,255,255,.95);backdrop-filter:blur(12px);padding:13px 22px;
+  border-bottom:1px solid var(--br);display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,.05)}
+.ph h2{font-size:17px;font-weight:700}
+.pb{padding:20px}
+
+/* ───── HAMBURGER (mobile) ───── */
+.ham{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;
+  background:transparent;border:none;border-radius:8px}
+.ham span{width:22px;height:2px;background:var(--txt);border-radius:2px;transition:.3s;display:block}
+.ham.open span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.ham.open span:nth-child(2){opacity:0}
+.ham.open span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;backdrop-filter:blur(2px)}
+.sb-overlay.open{display:block}
+
+/* ───── VIEWS ───── */
+.view{display:none}.view.on{display:block}
+
+/* ───── CARDS ───── */
+.card{background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-radius:14px;
+  box-shadow:0 2px 16px rgba(0,0,0,.07);overflow:hidden;margin-bottom:16px;
+  border:1px solid rgba(255,255,255,.8)}
+.ch{padding:13px 18px;border-bottom:1px solid var(--br);display:flex;
+  align-items:center;justify-content:space-between;background:rgba(248,250,252,.8)}
+.ch h3{font-size:14px;font-weight:700}
+.cb{padding:18px}
+
+/* ───── STATS ───── */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.sc{background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-radius:14px;
+  padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1px solid rgba(255,255,255,.8);
+  transition:.2s}.sc:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.si{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:18px;margin-bottom:10px}
+.sv{font-size:24px;font-weight:800;line-height:1}
+.sl{font-size:11.5px;color:var(--mu);margin-top:3px;font-weight:500}
+
+/* ───── FORMS ───── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px}
+.full{grid-column:1/-1}
+.fg{display:flex;flex-direction:column;gap:5px}
+label{font-size:12.5px;font-weight:600;color:#374151}
+label .r{color:var(--rd)}
+input,select,textarea{
+  padding:9px 12px;border:1.5px solid var(--br);border-radius:9px;
+  font-size:13.5px;font-family:inherit;transition:.15s;background:rgba(255,255,255,.9);
+  color:var(--txt);width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bl);
+  box-shadow:0 0 0 3px rgba(26,86,219,.12);background:#fff}
+input[readonly]{background:#f8fafc;color:var(--mu)}
+textarea{resize:vertical;min-height:70px}
+.rdgrp{display:flex;gap:10px;flex-wrap:wrap}
+.rdopt{display:flex;align-items:center;gap:7px;padding:9px 14px;border:1.5px solid var(--br);
+  border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;background:rgba(255,255,255,.9);
+  transition:.15s;width:auto}
+.rdopt:has(input:checked){border-color:var(--bl);background:var(--bll);color:var(--bld)}
+.rdopt input{width:auto;padding:0}
+
+/* ───── BUTTONS ───── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;
+  border:none;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;
+  transition:.15s;white-space:nowrap}
+.bb{background:linear-gradient(135deg,var(--bl),var(--tl));color:#fff;box-shadow:0 4px 12px rgba(26,86,219,.3)}
+.bb:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(26,86,219,.4)}
+.bg{background:linear-gradient(135deg,var(--gn),#059669);color:#fff;box-shadow:0 4px 12px rgba(5,122,85,.3)}
+.bg:hover{transform:translateY(-1px)}
+.br{background:linear-gradient(135deg,var(--rd),#dc2626);color:#fff;box-shadow:0 4px 12px rgba(224,36,36,.3)}
+.br:hover{transform:translateY(-1px)}
+.ba{background:linear-gradient(135deg,var(--am),#f59e0b);color:#fff;box-shadow:0 4px 12px rgba(217,119,6,.3)}
+.ba:hover{transform:translateY(-1px)}
+.bo{background:rgba(255,255,255,.9);border:1.5px solid var(--br);color:var(--txt);backdrop-filter:blur(4px)}
+.bo:hover{border-color:var(--bl);color:var(--bl);background:#fff}
+.bsm{padding:5px 11px;font-size:12px;border-radius:7px}
+.blg{padding:12px 24px;font-size:15px}
+.bw{width:100%}
+
+/* ───── BADGES ───── */
+.bdg{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.dg{background:var(--gnl);color:var(--gn)}.da{background:var(--aml);color:var(--am)}
+.dr{background:var(--rdl);color:var(--rd)}.db{background:var(--bll);color:var(--bl)}
+.dm{background:var(--br);color:var(--mu)}
+
+/* ───── TABLES ───── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--mu);border-bottom:1px solid var(--br);white-space:nowrap}
+tbody td{padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+tbody tr:hover{background:#fafafa}
+tbody tr:last-child td{border-bottom:none}
+
+/* ───── GPS ───── */
+.gpsi{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+  background:var(--gnl);border-radius:20px;font-size:12px;font-weight:500;color:var(--gn);
+  border:1px solid rgba(5,122,85,.2)}
+.gpsd{width:8px;height:8px;background:var(--gn);border-radius:50%;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.8)}}
+#gps-map,#adm-map{height:260px;border-radius:12px;border:1.5px solid var(--br);margin-bottom:14px;
+  box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden}
+
+/* ───── ASSESSMENT ───── */
+.asb{padding:9px 13px;border-radius:9px;font-size:12.5px;display:none;margin-top:7px}
+.asf{background:var(--gnl);color:var(--gn);border:1px solid rgba(5,122,85,.2);display:block}
+.asn{background:var(--aml);color:var(--am);border:1px solid rgba(217,119,6,.2);display:block}
+
+/* ───── PHOTO ───── */
+.pha{border:2px dashed var(--br);border-radius:12px;padding:22px;text-align:center;
+  cursor:pointer;transition:.2s;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:110px;background:rgba(248,250,252,.5)}
+.pha:hover{border-color:var(--bl);background:var(--bll)}
+#phpr{max-width:100%;max-height:220px;border-radius:10px;margin-top:10px;display:none}
+.gtag{display:none;padding:7px 12px;background:var(--gnl);border-radius:9px;
+  font-size:11.5px;color:var(--gn);margin-top:8px;border:1px solid rgba(5,122,85,.15)}
+
+/* ───── MODAL ───── */
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:9000;padding:20px}
+.ovl.op{display:flex}
+.mdl{background:#fff;border-radius:16px;padding:28px;width:100%;max-width:460px;
+  box-shadow:0 30px 80px rgba(0,0,0,.2)}
+.mi{font-size:46px;text-align:center;margin-bottom:12px}
+.mdl h3{font-size:18px;font-weight:700;text-align:center;margin-bottom:7px}
+.mdl p{font-size:13.5px;color:var(--mu);text-align:center;line-height:1.6}
+.mact{display:flex;gap:10px;margin-top:22px;justify-content:center}
+
+/* ───── SETTINGS CRUD ───── */
+.usr-form{background:linear-gradient(135deg,var(--bll),rgba(222,247,236,.4));
+  border-radius:12px;padding:18px;margin-bottom:16px;
+  border:1px solid rgba(26,86,219,.15);display:none}
+.usr-form.on{display:block}
+
+/* ───── TOASTS ───── */
+#tsts{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:7px}
+.tst{padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;
+  box-shadow:0 6px 20px rgba(0,0,0,.2);animation:tin .3s ease;
+  display:flex;align-items:center;gap:7px;max-width:300px;backdrop-filter:blur(8px)}
+.tg{background:rgba(5,122,85,.92)}.tr{background:rgba(224,36,36,.92)}
+.ta{background:rgba(217,119,6,.92)}.tb{background:rgba(26,86,219,.92)}
+@keyframes tin{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ───── FILTER BAR ───── */
+.fb{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
+.sw{position:relative;flex:1;min-width:180px}
+.sw::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  font-size:13px;pointer-events:none}
+.sw input{padding-left:32px}
+.fsel{padding:8px 11px;border:1.5px solid var(--br);border-radius:9px;font-size:13px;background:#fff}
+
+/* ───── MISC ───── */
+.col2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.col3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.empty{text-align:center;padding:40px 20px;color:var(--mu)}
+.ei{font-size:44px;margin-bottom:10px}
+.ac{background:var(--rdl);border-radius:9px;padding:10px 13px;font-size:12.5px;margin-bottom:8px;border:1px solid rgba(224,36,36,.15)}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}
+.muted{color:var(--mu);font-size:12.5px}
+.fw7{font-weight:700}.fw6{font-weight:600}
+code{background:#f3f4f6;padding:2px 7px;border-radius:5px;font-size:12px}
+.divider{height:1px;background:var(--br);margin:14px 0}
+
+@keyframes pulseLive{0%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.6)}100%{opacity:1;transform:scale(1)}}
+/* ───── ATTENDANCE OPTIONS ───── */
+.aopt{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.aob{flex:1;min-width:110px;padding:14px 10px;border:2px solid var(--br);border-radius:12px;
+  text-align:center;cursor:pointer;font-weight:700;font-size:13px;transition:.15s;background:#fff;
+  display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mu)}
+.aob span{font-size:22px}
+.aob:hover{border-color:var(--bl);transform:translateY(-1px)}
+.aob.sel-present{border-color:var(--gn);background:var(--gnl);color:var(--gn)}
+.aob.sel-absent{border-color:var(--rd);background:var(--rdl);color:var(--rd)}
+.aob.sel-office{border-color:var(--am);background:var(--aml);color:var(--am)}
+.atoday{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:11px;
+  margin-bottom:14px;font-size:13px;font-weight:600;border:1px solid}
+.atoday.ist-present{background:var(--gnl);color:var(--gn);border-color:rgba(5,122,85,.2)}
+.atoday.ist-absent{background:var(--rdl);color:var(--rd);border-color:rgba(224,36,36,.2)}
+.atoday.ist-office{background:var(--aml);color:var(--am);border-color:rgba(217,119,6,.2)}
+
+/* ───── WAYPOINT / ROUTE LIST ───── */
+.wproute{max-height:280px;overflow-y:auto}
+.wpitem{display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px solid #f3f4f6;font-size:12.5px}
+.wpitem:last-child{border-bottom:none}
+.wpdot{width:24px;height:24px;border-radius:50%;background:var(--bl);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:10.5px;font-weight:700;flex-shrink:0;margin-top:1px}
+.wpdot.wpv{background:var(--gn)}
+#my-route-map,#route-map{height:240px;border-radius:12px;border:1.5px solid var(--br);margin-bottom:14px;
+  box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden}
+
+/* ───── PENDING PULSE BADGE ───── */
+.pulse-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--rd);
+  margin-left:6px;animation:pulse 1.4s ease-in-out infinite}
+
+/* ───── PRINT ───── */
+@media print{
+  body>*:not(#pra){display:none!important}
+  #pra{display:block!important;position:fixed;top:0;left:0;width:100%;background:#fff}
+}
+.pr{padding:22px;background:#fff;font-family:sans-serif}
+.prh{text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #000}
+.prh h2{font-size:20px;font-weight:700}.prh h3{font-size:14px;margin-top:4px}
+.prh p{font-size:11px;color:#555;margin-top:3px}
+.prm{display:flex;gap:20px;margin-bottom:14px;font-size:12px;flex-wrap:wrap}
+.prt{width:100%;border-collapse:collapse}
+.prt th,.prt td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:11px}
+.prt th{background:#f0f0f0;font-weight:600}
+.prt tfoot td{background:#e8e8e8;font-weight:700}
+
+/* ───── MOBILE RESPONSIVE ───── */
+@media(max-width:768px){
+  :root{--sw:260px}
+  .sb{transform:translateX(-100%);transition:transform .3s ease;box-shadow:none}
+  .sb.open{transform:translateX(0);box-shadow:8px 0 30px rgba(0,0,0,.3)}
+  .mn{margin-left:0}
+  .ph{padding:11px 16px}
+  .pb{padding:14px}
+  .ham{display:flex}
+  .g2,.g3,.col2,.col3{grid-template-columns:1fr}
+  .sgrid{grid-template-columns:1fr 1fr}
+  .fb{flex-direction:column}
+  .fb>*{width:100%}
+  .lcard{padding:26px 22px}
+  #gps-map,#adm-map{height:200px}
+  .mact{flex-direction:column}
+  .mact .btn{width:100%}
+}
+@media(max-width:480px){
+  .sgrid{grid-template-columns:1fr}
+  .ph h2{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<!-- BUBBLES -->
+<div class="bbl-bg" aria-hidden="true">
+  <div class="bbl"></div><div class="bbl"></div><div class="bbl"></div><div class="bbl"></div>
+  <div class="bbl"></div><div class="bbl"></div><div class="bbl"></div><div class="bbl"></div>
+  <div class="bbl"></div><div class="bbl"></div><div class="bbl"></div><div class="bbl"></div>
+  <div class="bbl"></div><div class="bbl"></div><div class="bbl"></div><div class="bbl"></div>
+  <div class="bbl"></div><div class="bbl"></div><div class="bbl"></div><div class="bbl"></div>
+</div>
+
+<!-- TOASTS -->
+<div id="tsts"></div>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sb-overlay" id="sb-ovl" onclick="closeSB()"></div>
+
+<!-- MODAL -->
+<div class="ovl" id="ovl">
+  <div class="mdl">
+    <div class="mi" id="mi">⚠️</div>
+    <h3 id="mt">Alert</h3><p id="mm">—</p>
+    <div class="mact">
+      <button class="btn bo" id="mcx" onclick="closeModal()">Cancel</button>
+      <button class="btn bb" id="mok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER EDIT MODAL -->
+<div class="ovl" id="user-modal">
+  <div class="mdl" style="max-width:500px;">
+    <h3 id="um-title">Add User</h3>
+    <div class="divider"></div>
+    <div class="g2 mt12" style="margin-top:14px;">
+      <div class="fg"><label>Full Name <span class="r">*</span></label><input id="um-name" placeholder="Full name"></div>
+      <div class="fg"><label>Username <span class="r">*</span></label><input id="um-user" placeholder="Login username"></div>
+      <div class="fg"><label>Password <span class="r">*</span></label><input type="password" id="um-pass" placeholder="Password"></div>
+      <div class="fg"><label>Role</label>
+        <select id="um-role" onchange="toggleZoneField()">
+          <option value="off">👤 Field Officer</option>
+          <option value="admin">🛡️ Admin</option>
+        </select>
+      </div>
+      <div class="fg full" id="um-zone-wrap">
+        <label>Zone</label>
+        <select id="um-zone">
+          <option value="">Select Zone</option>
+          <option>North Zone</option><option>South Zone</option>
+          <option>East Zone</option><option>West Zone</option><option>Central Zone</option>
+        </select>
+      </div>
+      <div class="fg full">
+        <label>Company / Organization</label>
+        <input type="text" id="um-co" placeholder="Company or organization name (optional)">
+      </div>
+    </div>
+    <input type="hidden" id="um-id">
+    <div class="mact mt16" style="margin-top:18px;">
+      <button class="btn bo" onclick="closeUserModal()">Cancel</button>
+      <button class="btn bb" onclick="saveUser()">💾 Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT -->
+<div id="pra" style="display:none;"></div>
+
+<!-- ═════════════════════ LOGIN ═════════════════════ -->
+<div id="sl" class="screen">
+  <div class="lbbl-bg" aria-hidden="true">
+    <div class="lbbl" style="left:5%;width:50px;height:50px;animation-duration:7s;animation-delay:0s;"></div>
+    <div class="lbbl" style="left:15%;width:90px;height:90px;animation-duration:11s;animation-delay:1s;"></div>
+    <div class="lbbl" style="left:25%;width:35px;height:35px;animation-duration:6s;animation-delay:2.5s;"></div>
+    <div class="lbbl" style="left:40%;width:120px;height:120px;animation-duration:14s;animation-delay:.4s;"></div>
+    <div class="lbbl" style="left:55%;width:60px;height:60px;animation-duration:9s;animation-delay:1.8s;"></div>
+    <div class="lbbl" style="left:65%;width:80px;height:80px;animation-duration:12s;animation-delay:3.2s;"></div>
+    <div class="lbbl" style="left:75%;width:45px;height:45px;animation-duration:7.5s;animation-delay:.9s;"></div>
+    <div class="lbbl" style="left:85%;width:100px;height:100px;animation-duration:13s;animation-delay:2s;"></div>
+    <div class="lbbl" style="left:92%;width:55px;height:55px;animation-duration:8s;animation-delay:4s;"></div>
+    <div class="lbbl" style="left:10%;width:70px;height:70px;animation-duration:10s;animation-delay:3.5s;"></div>
+    <div class="lbbl" style="left:30%;width:40px;height:40px;animation-duration:6.5s;animation-delay:5s;"></div>
+    <div class="lbbl" style="left:50%;width:110px;height:110px;animation-duration:15s;animation-delay:1.5s;"></div>
+    <div class="lbbl" style="left:70%;width:65px;height:65px;animation-duration:9.5s;animation-delay:2.8s;"></div>
+    <div class="lbbl" style="left:80%;width:85px;height:85px;animation-duration:12.5s;animation-delay:.2s;"></div>
+    <div class="lbbl" style="left:20%;width:55px;height:55px;animation-duration:8.5s;animation-delay:4.5s;"></div>
+    <div class="lbbl" style="left:45%;width:30px;height:30px;animation-duration:5.5s;animation-delay:3s;"></div>
+    <div class="lbbl" style="left:60%;width:95px;height:95px;animation-duration:13.5s;animation-delay:.7s;"></div>
+    <div class="lbbl" style="left:35%;width:75px;height:75px;animation-duration:11s;animation-delay:2.2s;"></div>
+    <div class="lbbl" style="left:88%;width:42px;height:42px;animation-duration:7s;animation-delay:3.8s;"></div>
+    <div class="lbbl" style="left:3%;width:130px;height:130px;animation-duration:16s;animation-delay:1.2s;"></div>
+  </div>
+  <div class="lcard">
+    <div class="llogo">
+      <div class="lico">📋</div>
+      <h1>Survey Application</h1>
+      <p>Field Visit Tracking System</p>
+    </div>
+    <div class="rtabs">
+      <button class="rtab on" onclick="setRole('admin')" id="ta">🛡️ Admin</button>
+      <button class="rtab" onclick="setRole('officer')" id="to">👤 Field Officer</button>
+    </div>
+    <form onsubmit="doLogin(event)">
+      <div class="fg" style="margin-bottom:13px;">
+        <label>Username</label><input id="lu" placeholder="Enter username" required autocomplete="username">
+      </div>
+      <div class="fg" style="margin-bottom:18px;">
+        <label>Password</label><input type="password" id="lp" placeholder="Enter password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn bb blg bw">Login →</button>
+    </form>
+    <div class="hint" id="lh"><strong>Demo — Admin:</strong> admin / admin123</div>
+  </div>
+</div>
+
+<!-- ═════════════════════ OFFICER ═════════════════════ -->
+<div id="so" class="screen">
+<div class="app">
+  <div class="sb" id="sbo">
+    <div class="sbh"><div class="appn">Survey App</div><div class="apps">Field Officer Panel</div></div>
+    <div class="sbu">
+      <div class="ava" id="oav" style="background:linear-gradient(135deg,var(--bl),var(--tl));">R</div>
+      <div class="unam" id="onam">—</div><span class="urol">Field Officer</span>
+    </div>
+    <div class="sbn">
+      <div class="sbsec">Menu</div>
+      <div class="ni on" id="on-nv"  onclick="oNav('nv')">➕ New Visit</div>
+      <div class="ni"    id="on-mv"  onclick="oNav('mv')">📋 My Visits</div>
+      <div class="ni"    id="on-att" onclick="oNav('att')">✅ Attendance</div>
+    </div>
+    <div class="sbf">
+      <div class="gpsi mb8" style="margin-bottom:10px;"><div class="gpsd"></div><span id="gst">Tracking…</span></div>
+      <button class="lbtn" onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+  <div class="mn">
+
+    <!-- NEW VISIT -->
+    <div class="view on" id="ov-nv">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-o" onclick="toggleSB('sbo','ham-o')"><span></span><span></span><span></span></button>
+          <h2>📝 New Visit</h2>
+        </div>
+        <div class="gpsi"><div class="gpsd"></div><span id="ghdr">Getting location…</span></div>
+      </div>
+      <div class="pb">
+      <form id="vform" onsubmit="submitVisit(event)">
+
+        <div class="card">
+          <div class="ch"><h3>👤 Officer Information</h3></div>
+          <div class="cb"><div class="g2">
+            <div class="fg"><label>Field Officer Name</label><input id="von" readonly></div>
+            <div class="fg"><label>Date &amp; Time</label><input id="vdt" readonly></div>
+          </div></div>
+        </div>
+
+        <div class="card">
+          <div class="ch"><h3>🏢 Property Details</h3><span class="muted">Enter assessment no. to check DB</span></div>
+          <div class="cb">
+            <div class="fg" style="margin-bottom:14px;">
+              <label>Assessment Number</label>
+              <input type="text" id="vasn" placeholder="e.g. WD-2024-001" oninput="checkAsm(this.value)">
+              <div class="asb" id="asmb"></div>
+              <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <button type="button" class="btn ba bsm" id="napbtn" style="display:none;" onclick="markNew()">📄 New Application</button>
+                <span class="bdg db" id="napbdg" style="display:none;">📄 New Application</span>
+              </div>
+            </div>
+            <div class="g2">
+              <div class="fg"><label>Company / Owner Name <span class="r">*</span></label><input type="text" id="vco" placeholder="Company name" required></div>
+              <div class="fg"><label>Contact No. <span class="r">*</span></label><input type="tel" id="vcon" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" required></div>
+              <div class="fg"><label>Door No. <span class="r">*</span></label><input type="text" id="vdno" placeholder="e.g. 14" required></div>
+              <div class="fg"><label>Street Name <span class="r">*</span></label><input type="text" id="vst" placeholder="Street name" required></div>
+              <div class="fg"><label>Ward No. <span class="r">*</span></label><input type="text" id="vwd" placeholder="e.g. 12" required></div>
+              <div class="fg"><label>Zone <span class="r">*</span></label>
+                <select id="vzn" required>
+                  <option value="">Select Zone</option>
+                  <option>North Zone</option><option>South Zone</option>
+                  <option>East Zone</option><option>West Zone</option><option>Central Zone</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ch"><h3>💰 Payment Details</h3></div>
+          <div class="cb">
+            <div class="fg" style="margin-bottom:14px;">
+              <label>Registration Status <span class="r">*</span></label>
+              <div class="rdgrp">
+                <label class="rdopt"><input type="radio" name="vreg" value="register" onchange="toggleReg(this.value)" required> 📗 Register</label>
+                <label class="rdopt"><input type="radio" name="vreg" value="unregister" onchange="toggleReg(this.value)"> 📕 Unregister</label>
+              </div>
+            </div>
+
+            <!-- REGISTER BLOCK -->
+            <div id="reg-block" style="display:none;">
+              <div class="g2">
+                <div class="fg">
+                  <label>Payment Status <span class="r">*</span></label>
+                  <select id="vpay" onchange="toggleAmt(this.value)">
+                    <option value="">Select Status</option>
+                    <option value="paid">✅ Paid</option>
+                    <option value="not_paid">❌ Unpaid</option>
+                    <option value="new_application">📄 New Application</option>
+                  </select>
+                </div>
+                <div class="fg" id="amtw" style="display:none;">
+                  <label>Amount Paid (₹) <span class="r">*</span></label>
+                  <input type="number" id="vamt" placeholder="Enter amount" min="0" step="0.01">
+                </div>
+              </div>
+              <!-- Application status tracking — shows when Payment Status = New Application -->
+              <div id="notpaid-newapp" style="display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--br);">
+                <div class="g2">
+                  <div class="fg">
+                    <label>Application Status <span class="r">*</span></label>
+                    <select id="vastat" onchange="toggleDocChk(this.value)">
+                      <option value="">Select Status</option>
+                      <option value="doc_collection">📄 Document</option>
+                      <option value="approval">✅ Approval</option>
+                      <option value="payment_paid">💰 Payment Paid</option>
+                      <option value="close">🔒 Close</option>
+                      <option value="others">📌 Others</option>
+                    </select>
+                  </div>
+                </div>
+                <!-- Document checklist — shown when Application Status = "Document" -->
+                <div id="doc-chk-wrap" style="display:none;margin-top:13px;">
+                  <label>Documents Checklist</label>
+                  <div class="rdgrp">
+                    <label class="rdopt"><input type="checkbox" id="vdoc-gst"> 🧾 GST</label>
+                    <label class="rdopt"><input type="checkbox" id="vdoc-pan"> 🪪 PAN</label>
+                  </div>
+                </div>
+              </div>
+              <div class="g2" style="margin-top:13px;">
+                <div class="fg"><label>Remarks</label><input type="text" id="varemk" placeholder="Add remarks"></div>
+                <div class="fg"><label>Description</label><input type="text" id="vadesc" placeholder="Add description"></div>
+              </div>
+            </div>
+
+            <!-- UNREGISTER BLOCK -->
+            <div id="unreg-block" style="display:none;">
+              <div class="g2">
+                <div class="fg"><label>Remarks</label><input type="text" id="vuremk" placeholder="Add remarks"></div>
+                <div class="fg"><label>Description</label><input type="text" id="vudesc" placeholder="Add description"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ch">
+            <h3>📍 GPS Location</h3>
+            <button type="button" class="btn bo bsm" onclick="refreshGPS()">🔄 Refresh</button>
+          </div>
+          <div class="cb">
+            <!-- MAP ABOVE LAT/LNG -->
+            <div id="gps-map"></div>
+            <div class="g3">
+              <div class="fg"><label>Latitude</label><input id="vlat" readonly placeholder="Auto"></div>
+              <div class="fg"><label>Longitude</label><input id="vlng" readonly placeholder="Auto"></div>
+              <div class="fg"><label>Accuracy (m)</label><input id="vacc" readonly placeholder="—"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ch"><h3>📷 Visit Photo</h3><span class="muted">Live camera only · GPS auto-tagged</span></div>
+          <div class="cb">
+            <div class="pha" id="phInit" onclick="openCam()">
+              <div id="phph"><div style="font-size:42px;">📷</div>
+                <p class="fw6 mt8">Tap to Open Camera</p>
+                <p class="muted mt8">Live photo only — gallery upload is disabled. GPS coordinates will be auto-embedded.</p>
+              </div>
+            </div>
+            <div id="camWrap" style="display:none;">
+              <video id="camVid" autoplay playsinline muted style="width:100%;max-height:340px;border-radius:12px;background:#000;object-fit:cover;"></video>
+              <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+                <button type="button" class="btn bo bsm" onclick="closeCam()">✕ Cancel</button>
+                <button type="button" class="btn bb blg" onclick="capturePh()">📸 Capture Photo</button>
+              </div>
+            </div>
+            <div id="phPrevWrap" style="display:none;text-align:center;">
+              <img id="phpr" style="display:block;margin:0 auto;">
+              <button type="button" class="btn bo bsm" style="margin-top:10px;" onclick="retakePh()">🔄 Retake Photo</button>
+            </div>
+            <div class="gtag" id="gtag">📍 <strong>GPS Tagged:</strong> <span id="pgps">—</span></div>
+            <div id="phmeta" style="font-size:11.5px;color:var(--mu);margin-top:6px;display:none;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+          <button type="button" class="btn bo" onclick="resetForm()">🔄 Reset</button>
+          <button type="submit" class="btn bb blg">✅ Submit Visit</button>
+        </div>
+      </form>
+      </div>
+    </div>
+
+    <!-- MY VISITS -->
+    <div class="view" id="ov-mv">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-omv" onclick="toggleSB('sbo','ham-omv')"><span></span><span></span><span></span></button>
+          <h2>📋 My Visits</h2>
+        </div>
+        <button class="btn bo bsm" onclick="loadMV()">🔄 Refresh</button>
+      </div>
+      <div class="pb">
+        <div class="fb">
+          <div class="sw"><input type="text" id="mvs" placeholder="Search…" oninput="filterMV()"></div>
+          <input type="date" id="mvd" onchange="filterMV()" class="fsel">
+          <button class="btn bo bsm" onclick="clrMV()">✕ Clear</button>
+        </div>
+        <div class="card" style="margin-bottom:0;"><div class="tw">
+          <table><thead><tr>
+            <th>#</th><th>Date &amp; Time</th><th>Company</th><th>Street</th>
+            <th>Ward/Zone</th><th>Assessment</th><th>Payment</th><th>Amount</th><th>Photo</th>
+          </tr></thead><tbody id="mvtb"></tbody></table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ATTENDANCE -->
+    <div class="view" id="ov-att">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-oat" onclick="toggleSB('sbo','ham-oat')"><span></span><span></span><span></span></button>
+          <h2>✅ Attendance</h2>
+        </div>
+        <button class="btn bo bsm" onclick="loadMyAttendance();renderMyRoute();">🔄 Refresh</button>
+      </div>
+      <div class="pb">
+
+        <div class="card">
+          <div class="ch"><h3>🕐 Mark Today's Attendance</h3></div>
+          <div class="cb">
+            <div id="att-today-banner"></div>
+            <div id="att-gps-banner" style="margin-bottom:13px;"></div>
+            <div class="aopt">
+              <div class="aob" id="aob-present" onclick="selectAtt('present')"><span>🟢</span>Present</div>
+              <div class="aob" id="aob-absent" onclick="selectAtt('absent')"><span>🔴</span>Absent</div>
+              <div class="aob" id="aob-office" onclick="selectAtt('office')"><span>🟡</span>In Office</div>
+            </div>
+            <div class="g2" style="margin-top:13px;">
+              <div class="fg" id="att-time-wrap" style="display:none;">
+                <label>Present Time</label>
+                <input type="text" id="att-time" placeholder="Auto-filled">
+              </div>
+              <div class="fg full" id="att-remarks-wrap" style="display:none;grid-column:1/-1;">
+                <label>Remarks <span class="r">*</span></label>
+                <input type="text" id="att-remarks" placeholder="Reason for absence">
+              </div>
+            </div>
+            <div style="margin-top:13px;text-align:right;">
+              <button type="button" class="btn bb" onclick="submitAttendance()">💾 Save Attendance</button>
+            </div>
+            <div class="divider"></div>
+            <p class="muted mb8">My Attendance History</p>
+            <div class="tw"><table><thead><tr>
+              <th>Date</th><th>Status</th><th>Present Time</th><th>Remarks</th>
+            </tr></thead><tbody id="myatttb"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ch"><h3>🗺️ My Route Today</h3>
+            <span class="muted" id="my-route-livetag" style="display:flex;align-items:center;gap:6px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:var(--gn);display:inline-block;animation:pulseLive 1.4s ease-in-out infinite;"></span>
+              LIVE — updates automatically
+            </span>
+          </div>
+          <div class="cb">
+            <div id="my-route-map"></div>
+            <div class="wproute" id="my-route-list"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ═════════════════════ ADMIN ═════════════════════ -->
+<div id="sa" class="screen">
+<div class="app">
+  <div class="sb" id="sba">
+    <div class="sbh"><div class="appn">Survey App</div><div class="apps">Admin Panel</div></div>
+    <div class="sbu">
+      <div class="ava" style="background:linear-gradient(135deg,#dc2626,#9333ea);">A</div>
+      <div class="unam" id="anam">Admin</div>
+      <span class="urol" style="background:rgba(220,38,38,.2);color:#f87171;">Administrator</span>
+    </div>
+    <div class="sbn">
+      <div class="sbsec">Management</div>
+      <div class="ni on"  id="an-dash"   onclick="aNav('dash')">🏠 Dashboard</div>
+      <div class="ni"     id="an-vis"    onclick="aNav('vis')">📋 All Visits</div>
+      <div class="ni"     id="an-offs"   onclick="aNav('offs')">👥 Field Officers</div>
+      <div class="ni"     id="an-att"    onclick="aNav('att')">✅ Attendance<span id="attbadge"></span></div>
+      <div class="ni"     id="an-track"  onclick="aNav('track')">📍 GPS Tracking</div>
+      <div class="ni"     id="an-rpt"    onclick="aNav('rpt')">📊 Reports</div>
+      <div class="ni"     id="an-set"    onclick="aNav('set')">⚙️ Settings</div>
+    </div>
+    <div class="sbf"><button class="lbtn" onclick="logout()">🚪 Logout</button></div>
+  </div>
+  <div class="mn">
+
+    <!-- DASHBOARD -->
+    <div class="view on" id="av-dash">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-ad" onclick="toggleSB('sba','ham-ad')"><span></span><span></span><span></span></button>
+          <h2>🏠 Admin Dashboard</h2>
+        </div>
+        <button class="btn bo bsm" onclick="loadDash()">🔄 Refresh</button>
+      </div>
+      <div class="pb">
+        <div class="sgrid" id="astats"></div>
+        <div class="col2">
+          <div class="card">
+            <div class="ch"><h3>⚠️ Duplicate Alerts</h3><button class="btn bo bsm" onclick="clrAlerts()">Clear All</button></div>
+            <div class="cb" id="aalerts"></div>
+          </div>
+          <div class="card">
+            <div class="ch"><h3>📋 Recent Visits</h3></div>
+            <div class="cb" id="arecent"></div>
+          </div>
+        </div>
+        <!-- OFFICER ACTIVITY WITH COMPANY NAMES -->
+        <div class="card">
+          <div class="ch"><h3>👥 Officer Activity Today</h3></div>
+          <div class="cb" id="aactiv"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALL VISITS -->
+    <div class="view" id="av-vis">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-av" onclick="toggleSB('sba','ham-av')"><span></span><span></span><span></span></button>
+          <h2>📋 All Visits</h2>
+        </div>
+        <span class="muted" id="avcnt">—</span>
+      </div>
+      <div class="pb">
+        <div class="card mb12" style="margin-bottom:13px;"><div class="cb" style="padding:13px;">
+          <div class="fb" style="margin-bottom:0;">
+            <div class="sw" style="flex:2;"><input type="text" id="avs" placeholder="Search company, officer, ward, zone, assessment…" oninput="filterAV()"></div>
+            <select id="foff" onchange="filterAV()" class="fsel"><option value="">All Officers</option></select>
+            <select id="fpay" onchange="filterAV()" class="fsel">
+              <option value="">All Payments</option>
+              <option value="paid">✅ Paid</option>
+              <option value="not_paid">❌ Unpaid</option>
+              <option value="new_application">📄 New Application</option>
+            </select>
+            <input type="date" id="fdt" onchange="filterAV()" class="fsel">
+            <button class="btn bo bsm" onclick="clrAV()">✕ Clear</button>
+          </div>
+        </div></div>
+        <div class="card" style="margin-bottom:0;"><div class="tw">
+          <table><thead><tr>
+            <th>#</th><th>Date</th><th>Officer</th><th>Company</th><th>Street</th>
+            <th>Ward</th><th>Zone</th><th>Assessment</th><th>Type</th>
+            <th>Payment</th><th>Amount</th><th>Photo</th><th>GPS</th>
+          </tr></thead><tbody id="avtb"></tbody></table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- FIELD OFFICERS -->
+    <div class="view" id="av-offs">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-ao" onclick="toggleSB('sba','ham-ao')"><span></span><span></span><span></span></button>
+          <h2>👥 Field Officers</h2>
+        </div>
+      </div>
+      <div class="pb">
+        <div class="card" style="margin-bottom:0;"><div class="tw">
+          <table><thead><tr>
+            <th>#</th><th>Name</th><th>Username</th><th>Zone</th>
+            <th>Total Visits</th><th>Today</th><th>Companies Today</th><th>Amount</th>
+          </tr></thead><tbody id="offtb"></tbody></table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- GPS TRACKING ADMIN -->
+    <div class="view" id="av-track">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-at" onclick="toggleSB('sba','ham-at')"><span></span><span></span><span></span></button>
+          <h2>📍 GPS Tracking</h2>
+        </div>
+        <button class="btn bo bsm" onclick="loadTrack()">🔄 Refresh</button>
+      </div>
+      <div class="pb">
+        <div class="card">
+          <div class="ch"><h3>🗺️ Officers Map (Live)</h3></div>
+          <div class="cb"><div id="adm-map"></div></div>
+        </div>
+        <div id="atrk"></div>
+
+        <div class="card">
+          <div class="ch"><h3>🧭 Officer Route &amp; Visit Details</h3><span class="muted">Places covered, time marks, downloadable report</span></div>
+          <div class="cb">
+            <div class="fb">
+              <select id="rt-off" class="fsel"><option value="">Select Officer</option></select>
+              <input type="date" id="rt-date" class="fsel">
+              <button class="btn bb bsm" onclick="showOfficerRoute()">🧭 Show Route</button>
+              <button class="btn bo bsm" onclick="downloadRoutePDF()">📄 Download PDF</button>
+            </div>
+            <div id="route-map"></div>
+            <p class="muted mb8">Waypoints (time-marked)</p>
+            <div class="wproute" id="rt-list"><div class="empty"><div class="ei">📍</div><p>Select an officer and date, then click "Show Route"</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS ADMIN -->
+    <div class="view" id="av-rpt">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-ar" onclick="toggleSB('sba','ham-ar')"><span></span><span></span><span></span></button>
+          <h2>📊 Reports</h2>
+        </div>
+      </div>
+      <div class="pb">
+        <div class="col2">
+          <div class="card">
+            <div class="ch"><h3>📅 Day-wise Report</h3></div>
+            <div class="cb">
+              <div class="fg mb12"><label>Date</label><input type="date" id="arday"></div>
+              <div class="fg mb12"><label>Officer (optional)</label><select id="ardoff" class="fsel" style="width:100%;"><option value="">All Officers</option></select></div>
+              <div class="fg mb12"><label>Company Name (optional)</label><input type="text" id="arday-co" placeholder="Filter by company…" style="width:100%;"></div>
+              <button class="btn bb bw" onclick="printRpt('day','adm')">🖨️ Print Day Report</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch"><h3>📆 Month-wise Report</h3></div>
+            <div class="cb">
+              <div class="g2 mb12" style="margin-bottom:12px;">
+                <div class="fg"><label>Month</label>
+                  <select id="armo"><option value="0">January</option><option value="1">February</option>
+                  <option value="2">March</option><option value="3">April</option>
+                  <option value="4">May</option><option value="5">June</option>
+                  <option value="6">July</option><option value="7">August</option>
+                  <option value="8">September</option><option value="9">October</option>
+                  <option value="10">November</option><option value="11">December</option></select>
+                </div>
+                <div class="fg"><label>Year</label><input type="number" id="aryr" value="2026" min="2020" max="2035"></div>
+              </div>
+              <div class="fg mb12"><label>Officer (optional)</label><select id="armoff" class="fsel" style="width:100%;"><option value="">All Officers</option></select></div>
+              <div class="fg mb12"><label>Company Name (optional)</label><input type="text" id="armo-co" placeholder="Filter by company…" style="width:100%;"></div>
+              <button class="btn bg bw" onclick="printRpt('month','adm')">🖨️ Print Month Report</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ch">
+            <h3>📈 Officer-wise Summary</h3>
+            <select id="sumsel" onchange="renderSum()" class="fsel"></select>
+          </div>
+          <div class="cb" id="sumbody"></div>
+        </div>
+        <!-- COMPANY-WISE SUMMARY -->
+        <div class="card" style="margin-top:0;">
+          <div class="ch">
+            <h3>🏢 Company-wise Summary</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="co-srch" placeholder="Search company…" oninput="renderCoSum()"
+                style="padding:6px 10px;border:1.5px solid var(--br);border-radius:8px;font-size:12.5px;width:180px;">
+              <select id="co-sum-sel" onchange="renderCoSum()" class="fsel"></select>
+            </div>
+          </div>
+          <div class="cb" id="cosumbody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATTENDANCE ADMIN -->
+    <div class="view" id="av-att">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-aat" onclick="toggleSB('sba','ham-aat')"><span></span><span></span><span></span></button>
+          <h2>✅ Attendance</h2>
+        </div>
+        <button class="btn bo bsm" onclick="loadAttAdm()">🔄 Refresh</button>
+      </div>
+      <div class="pb">
+        <div class="col2">
+          <div class="card">
+            <div class="ch"><h3>📅 Day-wise Attendance</h3></div>
+            <div class="cb">
+              <div class="g2 mb12" style="margin-bottom:12px;">
+                <div class="fg"><label>Date</label><input type="date" id="att-day" onchange="renderAttDay()"></div>
+                <div class="fg"><label>Officer (optional)</label><select id="att-day-off" class="fsel" style="width:100%;" onchange="renderAttDay()"><option value="">All Officers</option></select></div>
+              </div>
+              <div class="tw"><table><thead><tr>
+                <th>Officer</th><th>Status</th><th>Present Time</th><th>Remarks</th><th>GPS</th>
+              </tr></thead><tbody id="attdaytb"></tbody></table></div>
+              <div style="text-align:right;margin-top:10px;">
+                <button class="btn bb bsm" onclick="downloadAttPDF('day')">📄 Download PDF</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch"><h3>📆 Month-wise Attendance</h3></div>
+            <div class="cb">
+              <div class="g2 mb12" style="margin-bottom:12px;">
+                <div class="fg"><label>Month</label>
+                  <select id="att-mo"><option value="0">January</option><option value="1">February</option>
+                  <option value="2">March</option><option value="3">April</option>
+                  <option value="4">May</option><option value="5">June</option>
+                  <option value="6">July</option><option value="7">August</option>
+                  <option value="8">September</option><option value="9">October</option>
+                  <option value="10">November</option><option value="11">December</option></select>
+                </div>
+                <div class="fg"><label>Year</label><input type="number" id="att-yr" value="2026" min="2020" max="2035"></div>
+              </div>
+              <button class="btn bg bw mb12" style="margin-bottom:12px;" onclick="renderAttMonth()">📊 Show Summary</button>
+              <div class="tw" id="attmonthwrap"><table><thead><tr>
+                <th>Officer</th><th>Present</th><th>Absent</th><th>In Office</th>
+              </tr></thead><tbody id="attmonthtb"></tbody></table></div>
+              <div style="text-align:right;margin-top:10px;">
+                <button class="btn bb bsm" onclick="downloadAttPDF('month')">📄 Download PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS - FULL CRUD -->
+    <div class="view" id="av-set">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="ham" id="ham-as" onclick="toggleSB('sba','ham-as')"><span></span><span></span><span></span></button>
+          <h2>⚙️ Settings — User Management</h2>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn bb bsm" onclick="openUserModal(null)">➕ Add User</button>
+          <button class="btn br bsm" onclick="clrVisits()">🗑️ Clear Visits</button>
+        </div>
+      </div>
+      <div class="pb">
+        <div class="card" style="margin-bottom:0;"><div class="tw">
+          <table><thead><tr>
+            <th>#</th><th>Name</th><th>Username</th><th>Role</th><th>Zone</th><th>Company</th>
+            <th>Total Visits</th><th>Edit</th><th>Delete</th>
+          </tr></thead><tbody id="settb"></tbody></table>
+        </div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ══ SAFE STORAGE (falls back to in-memory if localStorage is blocked —
+   e.g. Safari/iOS restricts localStorage for files opened directly via file://) ══ */
+const MEM={};
+let LS_OK=true;
+try{
+  const t='__sa_test__';localStorage.setItem(t,'1');localStorage.removeItem(t);
+}catch(e){LS_OK=false;}
+const SS={
+  get(k){try{return LS_OK?localStorage.getItem(k):(MEM[k]!==undefined?MEM[k]:null);}catch(e){return MEM[k]!==undefined?MEM[k]:null;}},
+  set(k,v){try{if(LS_OK){localStorage.setItem(k,v);return;}}catch(e){}MEM[k]=v;}
+};
+
+/* ══ DB ══ */
+const DB={
+  users(){let d=SS.get('sa_u');if(!d){const s=[
+    {id:1,name:'Admin User',user:'admin',pass:'admin123',role:'admin',zone:''},
+    {id:2,name:'Ravi Kumar',user:'officer1',pass:'pass123',role:'off',zone:'North Zone'},
+    {id:3,name:'Suresh M',user:'officer2',pass:'pass123',role:'off',zone:'South Zone'},
+    {id:4,name:'Priya S',user:'officer3',pass:'pass123',role:'off',zone:'East Zone'},
+  ];SS.set('sa_u',JSON.stringify(s));return s;}return JSON.parse(d);},
+  saveU(u){SS.set('sa_u',JSON.stringify(u))},
+  visits(){return JSON.parse(SS.get('sa_v')||'[]')},
+  saveV(v){SS.set('sa_v',JSON.stringify(v))},
+  track(){return JSON.parse(SS.get('sa_t')||'{}')},
+  saveT(t){SS.set('sa_t',JSON.stringify(t))},
+  alerts(){return JSON.parse(SS.get('sa_a')||'[]')},
+  saveA(a){SS.set('sa_a',JSON.stringify(a))},
+  attendance(){return JSON.parse(SS.get('sa_att')||'[]')},
+  saveAtt(a){SS.set('sa_att',JSON.stringify(a))},
+  permissions(){return JSON.parse(SS.get('sa_p')||'[]')},
+  saveP(p){SS.set('sa_p',JSON.stringify(p))}
+};
+
+/* ══ APPLICATION STATUS / REASON LABELS ══ */
+const ASLBL={doc_collection:'📄 Doc. Collection',approval:'✅ Approval',payment_paid:'💰 Payment Paid',close:'🔒 Close',others:'📌 Others'};
+const PAYLBL={paid:{t:'✅ Paid',c:'dg'},not_paid:{t:'❌ Unpaid',c:'dr'},new_application:{t:'📄 New Application',c:'da'}};
+const PRLBL={personal:'🙋 Personal',medical:'🏥 Medical',official:'🏢 Official Work',family:'👨‍👩‍👧 Family Emergency',others:'📌 Others'};
+const ATLBL={present:'🟢 Present',absent:'🔴 Absent',office:'🟡 In Office'};
+
+/* ══ SAMPLE / DEMO DATA SEEDING (runs once) ══ */
+function seedDemo(){
+  if(SS.get('sa_seeded_v1'))return;
+  SS.set('sa_seeded_v1','1');
+  function dt(daysAgo,hh,mm){const d=new Date();d.setDate(d.getDate()-daysAgo);d.setHours(hh,mm,0,0);return d;}
+  function ds(d){return d.toISOString().split('T')[0];}
+
+  /* 7 sample visits across the 3 demo officers */
+  const V=[
+    {id:Date.now()+1,offId:2,offName:'Ravi Kumar',co:'Sri Lakshmi Textiles',asn:'WD-2024-101',
+      dno:'14',st:'Mount Road',reg:'register',contact:'9884012345',docs:{gst:false,pan:false},desc:'',wd:'12',zn:'North Zone',isNew:false,pay:'paid',amt:4500,vastat:'',
+      appStatus:'',appRemarks:'',lat:'13.082700',lng:'80.270700',ph:null,phf:null,
+      ts:dt(0,9,20).toISOString(),date:ds(dt(0,9,20))},
+    {id:Date.now()+2,offId:2,offName:'Ravi Kumar',co:'Balaji Hardware',asn:'',
+      dno:'22',st:'Anna Nagar',reg:'register',contact:'9884012345',docs:{gst:false,pan:false},desc:'',wd:'14',zn:'North Zone',isNew:true,pay:'not_paid',amt:0,
+      appStatus:'others',appRemarks:'Owner unavailable, will revisit next week',
+      lat:'13.099800',lng:'80.284900',ph:null,phf:null,
+      ts:dt(0,13,5).toISOString(),date:ds(dt(0,13,5))},
+    {id:Date.now()+3,offId:3,offName:'Suresh M',co:'Madurai Silks',asn:'WD-2024-205',
+      dno:'9',st:'South Veli Street',reg:'register',contact:'9843056789',docs:{gst:false,pan:false},desc:'',wd:'7',zn:'South Zone',isNew:false,pay:'paid',amt:6200,
+      appStatus:'',appRemarks:'',lat:'9.925200',lng:'78.119800',ph:null,phf:null,
+      ts:dt(2,11,40).toISOString(),date:ds(dt(2,11,40))},
+    {id:Date.now()+4,offId:3,offName:'Suresh M',co:'Green Valley Apartments',asn:'',
+      dno:'5',st:'Bypass Road',reg:'register',contact:'9843056789',docs:{gst:false,pan:false},desc:'',wd:'9',zn:'South Zone',isNew:true,pay:'not_paid',amt:0,
+      appStatus:'approval',appRemarks:'Awaiting society committee approval',
+      lat:'9.933500',lng:'78.131200',ph:null,phf:null,
+      ts:dt(0,10,30).toISOString(),date:ds(dt(0,10,30))},
+    {id:Date.now()+5,offId:4,offName:'Priya S',co:'City Bakers',asn:'WD-2024-310',
+      dno:'3',st:'Market Street',reg:'register',contact:'9791023456',docs:{gst:false,pan:false},desc:'',wd:'3',zn:'East Zone',isNew:false,pay:'paid',amt:1800,
+      appStatus:'',appRemarks:'',lat:'13.050000',lng:'80.220000',ph:null,phf:null,
+      ts:dt(0,9,55).toISOString(),date:ds(dt(0,9,55))},
+    {id:Date.now()+6,offId:4,offName:'Priya S',co:'Om Sai Traders',asn:'',
+      dno:'17',st:'Temple Street',reg:'register',contact:'9791023456',docs:{gst:false,pan:false},desc:'',wd:'4',zn:'East Zone',isNew:true,pay:'not_paid',amt:0,
+      appStatus:'close',appRemarks:'Shop permanently closed — marked closed',
+      lat:'13.054800',lng:'80.224600',ph:null,phf:null,
+      ts:dt(3,15,10).toISOString(),date:ds(dt(3,15,10))},
+    {id:Date.now()+7,offId:2,offName:'Ravi Kumar',co:'Annapurna Stores',asn:'',
+      dno:'8',st:'Gandhi Road',reg:'register',contact:'9884012345',docs:{gst:false,pan:false},desc:'',wd:'12',zn:'North Zone',isNew:true,pay:'not_paid',amt:0,
+      appStatus:'doc_collection',appRemarks:'Owner requested 2 days to gather documents',
+      lat:'13.089000',lng:'80.275000',ph:null,phf:null,
+      ts:dt(1,16,0).toISOString(),date:ds(dt(1,16,0))},
+  ];
+  DB.saveV(V);
+
+  /* Attendance — last 4 days for each officer */
+  const A=[];
+  [2,3,4].forEach((offId,oi)=>{
+    const name=['Ravi Kumar','Suresh M','Priya S'][oi];
+    for(let day=3;day>=0;day--){
+      const isAbsent=(offId===4&&day===2);
+      const isOffice=(offId===3&&day===1);
+      const status=isAbsent?'absent':isOffice?'office':'present';
+      A.push({id:Date.now()+offId*10+day,offId,offName:name,date:ds(dt(day,9,30)),status,
+        presentTime:isAbsent?'':dt(day,9,30).toLocaleTimeString('en-IN'),
+        remarks:isAbsent?'Down with fever, on medical leave':'',
+        lat:'13.08'+(20+oi)+'00',lng:'80.27'+(10+oi)+'00',ts:dt(day,9,30).toISOString()});
+    }
+  });
+  DB.saveAtt(A);
+
+  /* Permission requests — one pending, one approved */
+  DB.saveP([
+    {id:Date.now()+901,offId:3,offName:'Suresh M',date:ds(dt(0,0,0)),duration:2,reason:'medical',
+      remarks:'Doctor appointment in the afternoon',status:'pending',ts:dt(0,8,45).toISOString()},
+    {id:Date.now()+902,offId:2,offName:'Ravi Kumar',date:ds(dt(1,0,0)),duration:1.5,reason:'personal',
+      remarks:'Bank work',status:'approved',ts:dt(1,9,10).toISOString()}
+  ]);
+
+  /* Track points — today's route per officer, for route map demo */
+  const T={};
+  T[2]={name:'Ravi Kumar',lastSeen:dt(0,13,5).toISOString(),pts:[
+    {lat:'13.082700',lng:'80.270700',ts:dt(0,9,5).toISOString()},
+    {lat:'13.089000',lng:'80.275000',ts:dt(0,9,40).toISOString()},
+    {lat:'13.095000',lng:'80.280000',ts:dt(0,11,15).toISOString()},
+    {lat:'13.099800',lng:'80.284900',ts:dt(0,13,5).toISOString()}]};
+  T[3]={name:'Suresh M',lastSeen:dt(0,10,30).toISOString(),pts:[
+    {lat:'9.925200',lng:'78.119800',ts:dt(0,9,15).toISOString()},
+    {lat:'9.929000',lng:'78.124000',ts:dt(0,9,50).toISOString()},
+    {lat:'9.933500',lng:'78.131200',ts:dt(0,10,30).toISOString()}]};
+  T[4]={name:'Priya S',lastSeen:dt(0,9,55).toISOString(),pts:[
+    {lat:'13.050000',lng:'80.220000',ts:dt(0,9,20).toISOString()},
+    {lat:'13.052500',lng:'80.222500',ts:dt(0,9,55).toISOString()}]};
+  DB.saveT(T);
+}
+
+/* ══ STATE ══ */
+let CU=null,selRole='admin',wid=null,cLat=null,cLng=null,phData=null,phFile=null,isNew=false;
+let gmap=null,gmarker=null,amap=null,amarks={};
+const MO=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+/* ══ HELPERS ══ */
+const $=id=>document.getElementById(id);
+function sv(id,v){const e=$(id);if(e)e.value=v;}
+function addr(v){return v.dno?`${v.dno}, ${v.st||''}`:(v.st||'');}
+function toast(msg,type='blue'){
+  const ic={green:'✅',red:'❌',amber:'⚠️',blue:'ℹ️'};
+  const cl={green:'tg',red:'tr',amber:'ta',blue:'tb'};
+  const t=document.createElement('div');
+  t.className=`tst ${cl[type]||'tb'}`;t.innerHTML=`${ic[type]||'ℹ️'} ${msg}`;
+  $('tsts').appendChild(t);setTimeout(()=>t.remove(),3800);
+}
+
+/* ══ MOBILE SIDEBAR ══ */
+function toggleSB(sbId,hamId){
+  const sb=$(sbId),ham=$(hamId),ovl=$('sb-ovl');
+  const isOpen=sb.classList.contains('open');
+  if(isOpen){sb.classList.remove('open');ham&&ham.classList.remove('open');ovl.classList.remove('open');}
+  else{sb.classList.add('open');ham&&ham.classList.add('open');ovl.classList.add('open');}
+}
+function closeSB(){
+  document.querySelectorAll('.sb').forEach(s=>s.classList.remove('open'));
+  document.querySelectorAll('.ham').forEach(h=>h.classList.remove('open'));
+  $('sb-ovl').classList.remove('open');
+}
+
+/* ══ SCREENS ══ */
+function showScr(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
+
+/* ══ MODAL ══ */
+function openModal(ico,title,msg,onOK,cancel=false){
+  $('mi').textContent=ico;$('mt').textContent=title;$('mm').textContent=msg;
+  $('mcx').style.display=cancel?'inline-flex':'none';
+  $('ovl').classList.add('op');
+  $('mok').onclick=()=>{closeModal();if(onOK)onOK();};
+}
+function closeModal(){$('ovl').classList.remove('op');}
+
+/* ══ AUTH ══ */
+function setRole(r){
+  selRole=r;
+  $('ta').classList.toggle('on',r==='admin');$('to').classList.toggle('on',r==='officer');
+  $('lh').innerHTML=r==='admin'
+    ?'<strong>Demo — Admin:</strong> admin / admin123'
+    :'<strong>Demo — Officers:</strong> officer1 / pass123 | officer2 / pass123 | officer3 / pass123';
+}
+function doLogin(e){
+  e.preventDefault();
+  try{
+    const u=$('lu').value.trim(),p=$('lp').value;
+    const role=selRole==='admin'?'admin':'off';
+    const usr=DB.users().find(x=>x.user===u&&x.pass===p&&x.role===role);
+    if(!usr){toast('Invalid credentials or wrong role','red');return;}
+    CU=usr;$('lu').value='';$('lp').value='';
+    if(role==='admin'){showScr('sa');initAdm();}
+    else{showScr('so');initOff();startGPS();}
+  }catch(err){
+    console.error('Login error:',err);
+    toast('Login failed: '+err.message,'red');
+  }
+}
+function logout(){
+  if(wid!==null){navigator.geolocation.clearWatch(wid);wid=null;}
+  stopMyRouteLive();
+  CU=null;cLat=null;cLng=null;phData=null;phFile=null;isNew=false;attStatus='';
+  gmap=null;gmarker=null;gmap2=null;gmark2=null;amap=null;amarks={};
+  myRMap=null;myRMarks=[];myRLine=null;rMap=null;rMarks=[];rLine=null;
+  showScr('sl');toast('Logged out','blue');
+}
+
+/* ══ GPS ══ */
+function startGPS(){
+  if(!navigator.geolocation){toast('GPS not supported','amber');return;}
+  navigator.geolocation.getCurrentPosition(onGPS,onGPSErr,{enableHighAccuracy:true});
+  wid=navigator.geolocation.watchPosition(onGPS,onGPSErr,{enableHighAccuracy:true,maximumAge:30000,timeout:20000});
+}
+function onGPS(pos){
+  cLat=pos.coords.latitude.toFixed(6);cLng=pos.coords.longitude.toFixed(6);
+  const acc=pos.coords.accuracy?pos.coords.accuracy.toFixed(0)+'m':'—';
+  sv('vlat',cLat);sv('vlng',cLng);sv('vacc',acc);
+  sv('tlat',cLat);sv('tlng',cLng);
+  const h=$('ghdr');if(h)h.textContent=`📍 ${cLat}, ${cLng}`;
+  const g=$('gst');if(g)g.textContent=`${cLat}, ${cLng}`;
+  if(phData){$('gtag').style.display='block';$('pgps').textContent=`${cLat}, ${cLng}`;}
+  // Update maps
+  updateGPSMap(cLat,cLng);
+  if(CU){
+    const tr=DB.track();
+    if(!tr[CU.id])tr[CU.id]={name:CU.name,pts:[]};
+    tr[CU.id].pts.push({lat:cLat,lng:cLng,ts:new Date().toISOString()});
+    if(tr[CU.id].pts.length>200)tr[CU.id].pts=tr[CU.id].pts.slice(-200);
+    tr[CU.id].lastSeen=new Date().toISOString();
+    DB.saveT(tr);
+  }
+}
+function onGPSErr(){const h=$('ghdr');if(h)h.textContent='GPS unavailable';}
+function refreshGPS(){navigator.geolocation.getCurrentPosition(onGPS,onGPSErr,{enableHighAccuracy:true,timeout:12000});toast('Refreshing GPS…','blue');}
+
+/* ══ GPS MAPS (Leaflet) ══ */
+function updateGPSMap(lat,lng){
+  if(typeof L==='undefined')return;
+  const ll=[parseFloat(lat),parseFloat(lng)];
+  // Form map
+  const el=$('gps-map');
+  if(el&&el.offsetParent!==null){
+    if(!gmap){
+      gmap=L.map('gps-map').setView(ll,15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(gmap);
+    }
+    gmap.setView(ll,16);
+    if(gmarker)gmarker.setLatLng(ll);
+    else gmarker=L.marker(ll).addTo(gmap).bindPopup(`📍 ${CU?.name||'Officer'}<br>${lat}, ${lng}`).openPopup();
+  }
+
+}
+
+function initAdmMap(){
+  if(typeof L==='undefined')return;
+  const el=$('adm-map');if(!el||amap)return;
+  amap=L.map('adm-map').setView([20.5937,78.9629],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(amap);
+}
+function updateAdmMap(){
+  if(typeof L==='undefined')return;
+  if(!amap)initAdmMap();if(!amap)return;
+  const tr=DB.track();
+  Object.entries(tr).forEach(([id,data])=>{
+    const lp=data.pts?.[data.pts.length-1];if(!lp)return;
+    const ll=[parseFloat(lp.lat),parseFloat(lp.lng)];
+    if(amarks[id])amarks[id].setLatLng(ll);
+    else{
+      const ic=L.divIcon({html:`<div style="background:var(--bl);color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3);">${data.name[0]}</div>`,iconSize:[32,32],className:''});
+      amarks[id]=L.marker(ll,{icon:ic}).addTo(amap)
+        .bindPopup(`<strong>${data.name}</strong><br>📍 ${lp.lat}, ${lp.lng}<br>🕐 ${new Date(lp.ts).toLocaleTimeString('en-IN')}`);
+    }
+  });
+}
+
+/* ══ OFFICER INIT ══ */
+function initOff(){
+  $('onam').textContent=CU.name;$('oav').textContent=CU.name[0].toUpperCase();
+  sv('von',CU.name);sv('vdt',new Date().toLocaleString('en-IN'));
+  const today=new Date().toISOString().split('T')[0];
+  sv('rday',today);const rm=$('rmo');if(rm)rm.value=new Date().getMonth();
+  oNav('nv');
+  // Init GPS map after short delay
+  setTimeout(()=>{if(cLat&&cLng)updateGPSMap(cLat,cLng);else{
+    const el=$('gps-map');
+    if(el&&!gmap&&typeof L!=='undefined'){
+      gmap=L.map('gps-map').setView([20.5937,78.9629],5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(gmap);
+    }
+  }},300);
+}
+function oNav(v){
+  ['nv','mv','att'].forEach(x=>{$('on-'+x).classList.toggle('on',x===v);$('ov-'+x).classList.toggle('on',x===v);});
+  closeSB();
+  if(v==='nv'){setTimeout(()=>{if(gmap)gmap.invalidateSize();},300);}
+  if(v==='mv')loadMV();
+  if(v==='att'){
+    loadMyAttendance();renderAttGPSBanner();
+    setTimeout(renderMyRoute,250);
+    startMyRouteLive();
+  } else {
+    stopMyRouteLive();
+  }
+}
+let myRouteLiveT=null;
+function startMyRouteLive(){
+  stopMyRouteLive();
+  myRouteLiveT=setInterval(()=>{
+    if(!navigator.geolocation)return;
+    navigator.geolocation.getCurrentPosition(pos=>{onGPS(pos);renderAttGPSBanner();renderMyRoute();},()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});
+  },8000);
+}
+function stopMyRouteLive(){
+  if(myRouteLiveT){clearInterval(myRouteLiveT);myRouteLiveT=null;}
+}
+
+/* ══ ASSESSMENT CHECK ══ */
+function checkAsm(val){
+  const box=$('asmb'),btn=$('napbtn');
+  box.className='asb';
+  if(!val.trim()){box.style.display='none';btn.style.display='none';return;}
+  const found=DB.visits().find(v=>v.asn.toLowerCase()===val.toLowerCase().trim());
+  if(found){
+    box.classList.add('asf');
+    box.innerHTML=`✅ <strong>Assessment Found!</strong> — ${found.co}, ${addr(found)} (Ward ${found.wd}, ${found.zn})`;
+    btn.style.display='none';isNew=false;$('napbdg').style.display='none';
+    const trg=$('newapp-trigger');if(trg)trg.style.display='block';
+    sv('vco',found.co);sv('vdno',found.dno||'');sv('vst',found.st);sv('vwd',found.wd);
+    const z=$('vzn');if(z)z.value=found.zn;
+  } else {
+    box.classList.add('asn');
+    box.innerHTML=`⚠️ <strong>New Assessment</strong> — Not in database. Mark as "New Application" to register.`;
+    btn.style.display='inline-flex';isNew=false;$('napbdg').style.display='none';
+    const trg=$('newapp-trigger');if(trg)trg.style.display='block';
+    sv('vco','');sv('vdno','');sv('vst','');sv('vwd','');
+  }
+}
+function markNew(){
+  isNew=true;$('napbtn').style.display='none';$('napbdg').style.display='inline-flex';
+  toast('Marked as New Application','blue');
+}
+
+/* ══ REGISTER / UNREGISTER TOGGLE ══ */
+function toggleReg(val){
+  const rb=$('reg-block'),ub=$('unreg-block'),pay=$('vpay');
+  if(val==='register'){
+    rb.style.display='block';ub.style.display='none';
+    if(pay)pay.required=true;
+  } else {
+    rb.style.display='none';ub.style.display='block';
+    if(pay)pay.required=false;
+  }
+}
+
+/* ══ PAYMENT TOGGLE (shows Application Status dropdown when "New Application") ══ */
+function toggleAmt(val){
+  const w=$('amtw'),f=$('vamt'),np=$('notpaid-newapp');
+  w.style.display=val==='paid'?'flex':'none';
+  f.required=val==='paid';
+  if(val!=='paid')f.value='';
+  // Application Status dropdown (Document / Approval / Payment Paid / Close / Others)
+  // only appears when Payment Status = "New Application"
+  if(val==='new_application'){
+    np.style.display='block';
+    isNew=true;
+    $('napbdg').style.display='inline-flex';$('napbtn').style.display='none';
+  } else {
+    np.style.display='none';
+    $('vastat').value='';
+    $('doc-chk-wrap').style.display='none';
+    $('vdoc-gst').checked=false;$('vdoc-pan').checked=false;
+  }
+}
+
+/* ══ DOCUMENT CHECKBOXES (shows when Application Status = Document Collection) ══ */
+function toggleDocChk(val){
+  const w=$('doc-chk-wrap');
+  w.style.display=val==='doc_collection'?'block':'none';
+}
+
+/* ══ PHOTO (live capture, GPS lat/long stamped onto the image) ══ */
+let camStream=null;
+function openCam(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast('Camera not available on this device/browser','red');return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})
+    .then(stream=>{
+      camStream=stream;
+      const v=$('camVid');v.srcObject=stream;
+      $('phInit').style.display='none';
+      $('phPrevWrap').style.display='none';
+      $('camWrap').style.display='block';
+    })
+    .catch(()=>{toast('Camera permission denied or unavailable','red');});
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  $('camWrap').style.display='none';
+  $('phInit').style.display=phData?'none':'flex';
+  $('phPrevWrap').style.display=phData?'block':'none';
+}
+function capturePh(){
+  const v=$('camVid');
+  if(!v.videoWidth){toast('Camera still loading, try again','amber');return;}
+  const cv=document.createElement('canvas');
+  cv.width=v.videoWidth;cv.height=v.videoHeight;
+  const ctx=cv.getContext('2d');
+  ctx.drawImage(v,0,0,cv.width,cv.height);
+  // GPS + timestamp stamp burned into the live-captured frame
+  const stamp1=(cLat&&cLng)?`📍 Lat: ${cLat}, Long: ${cLng}`:'📍 GPS not available';
+  const stamp2=`🕐 ${new Date().toLocaleString('en-IN')}`;
+  const fs=Math.max(16,Math.round(cv.width*0.028));
+  ctx.font=`bold ${fs}px sans-serif`;
+  const padX=fs*0.7,padY=fs*0.6,lineH=fs*1.35,barH=lineH*2+padY*2;
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.fillRect(0,cv.height-barH,cv.width,barH);
+  ctx.fillStyle='#ffffff';
+  ctx.textBaseline='top';
+  ctx.fillText(stamp1,padX,cv.height-barH+padY);
+  ctx.fillText(stamp2,padX,cv.height-barH+padY+lineH);
+  phData=cv.toDataURL('image/jpeg',0.85);
+  phFile={name:`visit_${Date.now()}.jpg`,size:Math.round(phData.length*0.75)};
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  $('camWrap').style.display='none';
+  $('phInit').style.display='none';
+  const p=$('phpr');p.src=phData;p.style.display='block';
+  $('phPrevWrap').style.display='block';
+  if(cLat&&cLng){$('gtag').style.display='block';$('pgps').textContent=`${cLat}, ${cLng}`;}
+  else{$('gtag').style.display='block';$('pgps').textContent='Not available yet';}
+  $('phmeta').style.display='block';
+  $('phmeta').textContent=`📷 Live capture (${(phFile.size/1024).toFixed(1)} KB) — GPS stamped`;
+}
+function retakePh(){
+  phData=null;phFile=null;
+  $('phPrevWrap').style.display='none';
+  $('gtag').style.display='none';
+  $('phmeta').style.display='none';
+  openCam();
+}
+
+/* ══ DUPLICATE CHECK ══ */
+function checkDups(co,asn,sz,fn){
+  const dups=[];
+  DB.visits().forEach(v=>{
+    const r=[];
+    if(v.co.toLowerCase()===co.toLowerCase()&&v.asn&&asn&&v.asn===asn)r.push('Same company + assessment number');
+    if(sz&&v.phf&&v.phf.size===sz&&v.phf.name===fn)r.push('Identical photo file');
+    if(r.length)dups.push({v,r});
+  });return dups;
+}
+
+/* ══ SUBMIT VISIT ══ */
+function submitVisit(e){
+  e.preventDefault();
+  const co=$('vco').value.trim(),asn=$('vasn').value.trim();
+  const reg=(document.querySelector('input[name="vreg"]:checked')||{}).value;
+  if(!reg){toast('Select Register or Unregister','amber');return;}
+  const pay=reg==='register'?$('vpay').value:'',amt=reg==='register'?$('vamt').value:0;
+  if(reg==='register'&&!pay){toast('Select a Payment Status','amber');return;}
+  if(reg==='register'&&pay==='new_application'&&!$('vastat').value){toast('Select an Application Status','amber');return;}
+  const dups=checkDups(co,asn,phFile?.size,phFile?.name);
+  if(dups.length){
+    const rsn=dups.map(d=>d.r.join(', ')).join('; ');
+    const A=DB.alerts();A.push({id:Date.now(),offId:CU.id,offName:CU.name,co,asn,reason:rsn,ts:new Date().toISOString()});DB.saveA(A);
+    const ok=$('mok');ok.textContent='Submit Anyway';ok.style.background='var(--rd)';
+    openModal('⚠️','Duplicate Detected!',`Possible duplicate: ${rsn}. Alert sent to admin.`,
+      ()=>{ok.textContent='OK';ok.style.background='';doSave(co,asn,reg,pay,amt);},true);
+    return;
+  }
+  doSave(co,asn,reg,pay,amt);
+}
+function doSave(co,asn,reg,pay,amt){
+  const v={id:Date.now(),offId:CU.id,offName:CU.name,contact:$('vcon').value.trim(),co,asn,
+    dno:$('vdno').value.trim(),st:$('vst').value.trim(),wd:$('vwd').value.trim(),zn:$('vzn').value,
+    isNew:isNew||pay==='new_application',reg,pay,amt:pay==='paid'?(parseFloat(amt)||0):0,
+    appStatus:(reg==='register'&&pay==='new_application')?($('vastat').value||''):'',
+    appRemarks:(reg==='register'&&pay==='new_application')?($('varemk').value.trim()||''):'',
+    docs:{gst:$('vdoc-gst').checked,pan:$('vdoc-pan').checked},
+    remarks:reg==='register'?$('varemk').value.trim():$('vuremk').value.trim(),
+    desc:reg==='register'?$('vadesc').value.trim():$('vudesc').value.trim(),
+    lat:cLat,lng:cLng,ph:phData,phf:phFile,ts:new Date().toISOString(),date:new Date().toISOString().split('T')[0]};
+  const V=DB.visits();V.push(v);DB.saveV(V);
+  toast('Visit submitted! ✅','green');resetForm();
+}
+function resetForm(){
+  $('vform').reset();sv('von',CU?.name||'');sv('vdt',new Date().toLocaleString('en-IN'));
+  $('reg-block').style.display='none';$('unreg-block').style.display='none';
+  $('doc-chk-wrap').style.display='none';
+  if(cLat){sv('vlat',cLat);sv('vlng',cLng);}
+  $('asmb').className='asb';$('asmb').style.display='none';
+  $('napbtn').style.display='none';$('napbdg').style.display='none';
+  $('notpaid-newapp').style.display='none';
+  const trg=$('newapp-trigger');if(trg)trg.style.display='block';
+  sv('vastat','');sv('varemk','');sv('vadesc','');sv('vuremk','');sv('vudesc','');
+  $('vdoc-gst').checked=false;$('vdoc-pan').checked=false;
+  $('amtw').style.display='none';
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  $('camWrap').style.display='none';
+  $('phPrevWrap').style.display='none';
+  $('phInit').style.display='flex';
+  $('phpr').style.display='none';
+  $('gtag').style.display='none';$('phmeta').style.display='none';
+  phData=null;phFile=null;isNew=false;
+}
+
+/* ══ ATTENDANCE (Officer) ══ */
+let attStatus='';
+function selectAtt(s){
+  attStatus=s;
+  ['present','absent','office'].forEach(k=>$('aob-'+k).classList.remove('sel-present','sel-absent','sel-office'));
+  $('aob-'+s).classList.add('sel-'+s);
+  $('att-remarks-wrap').style.display=s==='absent'?'block':'none';
+  $('att-time-wrap').style.display=s!=='absent'?'block':'none';
+  if(s!=='absent')sv('att-time',new Date().toLocaleTimeString('en-IN'));
+}
+function submitAttendance(){
+  if(!attStatus){toast('Select Present, Absent or In Office','amber');return;}
+  if(attStatus==='absent'&&!$('att-remarks').value.trim()){toast('Add remarks for absence','amber');return;}
+  if(!cLat||!cLng){toast('Enable location permission before marking attendance','amber');renderAttGPSBanner();return;}
+  const today=new Date().toISOString().split('T')[0];
+  const rec={id:Date.now(),offId:CU.id,offName:CU.name,date:today,status:attStatus,
+    presentTime:attStatus!=='absent'?($('att-time').value||new Date().toLocaleTimeString('en-IN')):'',
+    remarks:$('att-remarks').value.trim(),lat:cLat,lng:cLng,ts:new Date().toISOString()};
+  const A=DB.attendance();const idx=A.findIndex(x=>x.offId===CU.id&&x.date===today);
+  if(idx>=0)A[idx]=rec;else A.push(rec);
+  DB.saveAtt(A);toast('Attendance saved: '+ATLBL[attStatus],'green');
+  loadMyAttendance();
+}
+
+/* ══ GPS LOCATION PERMISSION (Attendance) ══ */
+function renderAttGPSBanner(){
+  const b=$('att-gps-banner');if(!b)return;
+  if(cLat&&cLng){
+    b.innerHTML=`<div class="atoday ist-present" style="justify-content:space-between;">
+      <span>📍 <strong>Location permission granted</strong> — ${cLat}, ${cLng}</span>
+      <button type="button" class="btn bo bsm" onclick="requestAttGPS()">🔄 Update</button>
+    </div>`;
+  } else {
+    b.innerHTML=`<div class="atoday" style="background:var(--aml);color:var(--am);border-color:rgba(217,119,6,.2);justify-content:space-between;">
+      <span>📍 <strong>Location permission required</strong> to mark attendance</span>
+      <button type="button" class="btn ba bsm" onclick="requestAttGPS()">Enable Location</button>
+    </div>`;
+  }
+}
+function requestAttGPS(){
+  if(!navigator.geolocation){toast('GPS not supported on this device/browser','red');return;}
+  toast('Requesting location permission…','blue');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{onGPS(pos);renderAttGPSBanner();toast('Location permission granted ✅','green');},
+    ()=>{
+      const b=$('att-gps-banner');
+      if(b)b.innerHTML=`<div class="atoday" style="background:var(--rdl);color:var(--rd);border-color:rgba(224,36,36,.2);justify-content:space-between;">
+        <span>❌ <strong>Location permission denied</strong> — enable it in your browser settings</span>
+        <button type="button" class="btn bo bsm" onclick="requestAttGPS()">Retry</button>
+      </div>`;
+      toast('Location permission denied','red');
+    },
+    {enableHighAccuracy:true,timeout:12000}
+  );
+}
+function loadMyAttendance(){
+  const A=DB.attendance().filter(x=>x.offId===CU.id);
+  const today=new Date().toISOString().split('T')[0];
+  const tod=A.find(x=>x.date===today);
+  const bnr=$('att-today-banner');
+  if(tod){
+    bnr.innerHTML=`<div class="atoday ist-${tod.status}">${ATLBL[tod.status]} — marked for today${tod.presentTime?' at '+tod.presentTime:''}${tod.remarks?' · '+tod.remarks:''}</div>`;
+    attStatus=tod.status;selectAtt(tod.status);
+    if(tod.remarks)$('att-remarks').value=tod.remarks;
+    if(tod.presentTime)sv('att-time',tod.presentTime);
+  } else { bnr.innerHTML='<div class="atoday" style="background:var(--bg);color:var(--mu);border-color:var(--br);">⏳ Attendance not marked yet for today</div>'; }
+  const tb=$('myatttb');
+  tb.innerHTML=[...A].reverse().slice(0,15).map(a=>`<tr>
+    <td>${a.date}</td><td><span class="bdg ${a.status==='present'?'dg':a.status==='absent'?'dr':'da'}">${ATLBL[a.status]}</span></td>
+    <td>${a.presentTime||'—'}</td><td>${a.remarks||'—'}</td>
+  </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--mu);">No attendance records yet</td></tr>';
+}
+
+/* ══ MY ROUTE MAP (Officer) ══ */
+let myRMap=null,myRMarks=[],myRLine=null;
+function renderMyRoute(){
+  const el=$('my-route-map');if(!el)return;
+  if(typeof L==='undefined')return;
+  const today=new Date().toISOString().split('T')[0];
+  const TR=DB.track(),t=CU?TR[CU.id]:null;
+  const pts=(t?.pts||[]).filter(p=>p.ts.startsWith(today));
+  const V=DB.visits().filter(v=>v.offId===CU.id&&v.date===today);
+  if(!myRMap){
+    myRMap=L.map('my-route-map').setView([20.5937,78.9629],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(myRMap);
+  }
+  myRMarks.forEach(m=>myRMap.removeLayer(m));myRMarks=[];
+  if(myRLine){myRMap.removeLayer(myRLine);myRLine=null;}
+  const latlngs=pts.map(p=>[parseFloat(p.lat),parseFloat(p.lng)]);
+  if(latlngs.length>1)myRLine=L.polyline(latlngs,{color:'#057a55',weight:4,opacity:.75}).addTo(myRMap);
+  pts.forEach((p,i)=>{
+    const ic=L.divIcon({html:`<div style="background:#057a55;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.3);">${i+1}</div>`,iconSize:[24,24],className:''});
+    myRMarks.push(L.marker([parseFloat(p.lat),parseFloat(p.lng)],{icon:ic}).addTo(myRMap).bindPopup(`🕐 ${new Date(p.ts).toLocaleTimeString('en-IN')}`));
+  });
+  // Live current-position marker (pulsing green dot)
+  if(cLat&&cLng){
+    const liveIc=L.divIcon({html:`<div style="width:20px;height:20px;border-radius:50%;background:rgba(5,122,85,.25);display:flex;align-items:center;justify-content:center;"><div style="width:12px;height:12px;border-radius:50%;background:#057a55;border:2px solid #fff;box-shadow:0 0 0 2px #057a55,0 2px 6px rgba(0,0,0,.4);animation:pulseLive 1.4s ease-in-out infinite;"></div></div>`,iconSize:[20,20],className:''});
+    myRMarks.push(L.marker([parseFloat(cLat),parseFloat(cLng)],{icon:liveIc,zIndexOffset:1000}).addTo(myRMap).bindPopup(`🟢 <strong>Live location</strong><br>${cLat}, ${cLng}`));
+  }
+  V.forEach(v=>{
+    if(!v.lat)return;
+    const ic=L.divIcon({html:`<div style="background:var(--gn);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.35);">🏢</div>`,iconSize:[28,28],className:''});
+    myRMarks.push(L.marker([parseFloat(v.lat),parseFloat(v.lng)],{icon:ic}).addTo(myRMap).bindPopup(`<strong>${v.co}</strong><br>🕐 ${new Date(v.ts).toLocaleTimeString('en-IN')}`));
+  });
+  const allPts=[...latlngs,...V.filter(v=>v.lat).map(v=>[parseFloat(v.lat),parseFloat(v.lng)])];
+  if(allPts.length){myRMap.fitBounds(allPts,{padding:[30,30]});}
+  setTimeout(()=>myRMap.invalidateSize(),200);
+  const list=$('my-route-list');
+  const items=[...pts.map(p=>({t:p.ts,html:`📍 ${p.lat}, ${p.lng}`,v:false})),...V.map(v=>({t:v.ts,html:`<strong>${v.co}</strong> — ${addr(v)}`,v:true}))]
+    .sort((a,b)=>new Date(a.t)-new Date(b.t));
+  list.innerHTML=items.length?items.map((it,i)=>`<div class="wpitem"><div class="wpdot${it.v?' wpv':''}">${it.v?'🏢':i+1}</div><div>🕐 ${new Date(it.t).toLocaleTimeString('en-IN')} — ${it.html}</div></div>`).join('')
+    :'<div class="empty"><div class="ei">📍</div><p>No route data recorded yet today</p></div>';
+}
+
+/* ══ MY VISITS ══ */
+function loadMV(){const v=DB.visits().filter(x=>x.offId===CU.id);renderTbl(v,'mvtb',false);}
+function filterMV(){
+  const q=($('mvs').value||'').toLowerCase(),d=$('mvd').value;
+  let v=DB.visits().filter(x=>x.offId===CU.id);
+  if(d)v=v.filter(x=>x.date===d);
+  if(q)v=v.filter(x=>x.co.toLowerCase().includes(q)||(x.dno||'').toLowerCase().includes(q)||x.st.toLowerCase().includes(q)||(x.asn||'').toLowerCase().includes(q));
+  renderTbl(v,'mvtb',false);
+}
+function clrMV(){$('mvs').value='';$('mvd').value='';loadMV();}
+
+/* ══ RENDER TABLE ══ */
+function renderTbl(visits,tbId,isAdm){
+  const tb=$(tbId);const cols=isAdm?13:9;
+  if(!visits.length){tb.innerHTML=`<tr><td colspan="${cols}" style="text-align:center;padding:30px;color:var(--mu);">No visits found</td></tr>`;return;}
+  tb.innerHTML=[...visits].reverse().map((v,i)=>`
+    <tr>
+      <td>${visits.length-i}</td>
+      <td style="white-space:nowrap;font-size:11.5px;">${new Date(v.ts).toLocaleString('en-IN')}</td>
+      ${isAdm?`<td><strong>${v.offName}</strong></td>`:''}
+      <td><strong>${v.co}</strong></td><td>${addr(v)}</td><td>${v.wd}</td>
+      ${isAdm?`<td>${v.zn}</td>`:''}
+      <td>${v.asn||'<span style="color:var(--mu)">—</span>'}${v.isNew?'<span class="bdg db" style="font-size:10px;margin-left:3px;">NEW</span>':''}</td>
+      ${!isAdm?`<td style="font-size:12px;">${v.wd}/${v.zn}</td>`:''}
+      ${isAdm?`<td>${v.isNew?'<span class="bdg da">New App</span>':'<span class="bdg dm">Existing</span>'}${v.appStatus?`<br><span class="bdg db" style="font-size:10px;margin-top:3px;" title="${v.appRemarks||''}">${ASLBL[v.appStatus]||v.appStatus}</span>`:''}</td>`:''}
+      <td><span class="bdg ${(PAYLBL[v.pay]||PAYLBL.not_paid).c}">${(PAYLBL[v.pay]||PAYLBL.not_paid).t}</span>${!isAdm&&v.appStatus?`<br><span class="bdg db" style="font-size:10px;margin-top:3px;" title="${v.appRemarks||''}">${ASLBL[v.appStatus]||v.appStatus}</span>`:''}</td>
+      <td>${v.pay==='paid'?'<strong>₹'+v.amt.toLocaleString('en-IN')+'</strong>':'—'}</td>
+      <td>${v.ph?`<img src="${v.ph}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);" onclick="viewPh(${v.id})" title="View photo">`:'<span style="color:var(--mu)">—</span>'}</td>
+      ${isAdm?`<td style="font-size:11px;color:var(--mu);">${v.lat?`${v.lat},<br>${v.lng}`:'—'}</td>`:''}
+    </tr>`).join('');
+}
+function viewPh(vid){
+  const v=DB.visits().find(x=>x.id===vid||x.id===Number(vid));if(!v||!v.ph)return;
+  const w=window.open('','_blank','width=820,height=700');
+  w.document.write(`<html><body style="margin:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;">
+    <img src="${v.ph}" style="max-width:95%;max-height:80vh;border-radius:10px;">
+    <div style="color:#fff;margin-top:12px;font-size:13px;text-align:center;padding:0 16px;">
+      <p>🏢 <strong>${v.co}</strong> — ${addr(v)}</p>
+      <p style="margin-top:5px;">📍 GPS: ${v.lat||'N/A'}, ${v.lng||'N/A'}</p>
+      <p style="margin-top:4px;">📅 ${new Date(v.ts).toLocaleString('en-IN')} | 👤 ${v.offName}</p>
+    </div></body></html>`);
+}
+
+/* ══ PRINT ══ */
+function printRpt(type,src){
+  let V=DB.visits(),offName='All Officers';
+  if(type==='day'){
+    const dId=src==='adm'?'arday':'rday',dt=$(dId).value;
+    if(!dt){toast('Select a date','amber');return;}
+    V=V.filter(v=>v.date===dt);
+    if(src==='off'){V=V.filter(v=>v.offId===CU.id);offName=CU.name;}
+    else{const sel=$('ardoff')?.value;if(sel){V=V.filter(v=>v.offId==sel);offName=DB.users().find(u=>u.id==sel)?.name||'?';}
+      const coF=($('arday-co')?.value||'').trim().toLowerCase();if(coF)V=V.filter(v=>v.co.toLowerCase().includes(coF));}
+    buildPrint('Day-wise Report',dt,V,offName);
+  } else {
+    const mo=parseInt($(src==='adm'?'armo':'rmo').value),yr=parseInt($(src==='adm'?'aryr':'ryr').value);
+    V=V.filter(v=>{const d=new Date(v.date);return d.getMonth()===mo&&d.getFullYear()===yr;});
+    if(src==='off'){V=V.filter(v=>v.offId===CU.id);offName=CU.name;}
+    else{const sel=$('armoff')?.value;if(sel){V=V.filter(v=>v.offId==sel);offName=DB.users().find(u=>u.id==sel)?.name||'?';}
+      const coF=($('armo-co')?.value||'').trim().toLowerCase();if(coF)V=V.filter(v=>v.co.toLowerCase().includes(coF));}
+    buildPrint(`Month-wise Report — ${MO[mo]} ${yr}`,`${MO[mo]} ${yr}`,V,offName);
+  }
+}
+function buildPrint(title,period,visits,offName){
+  const paid=visits.filter(v=>v.pay==='paid'),tot=paid.reduce((s,v)=>s+v.amt,0);
+  const html=`<div class="pr">
+    <div class="prh"><h2>📋 Survey Application</h2><h3>${title}</h3>
+      <p>Officer: <strong>${offName}</strong> | Period: <strong>${period}</strong> | Printed: ${new Date().toLocaleString('en-IN')}</p></div>
+    <div class="prm"><span>Total: <strong>${visits.length}</strong></span><span>Paid: <strong>${paid.length}</strong></span>
+      <span>Not Paid: <strong>${visits.length-paid.length}</strong></span><span>Amount: <strong>₹${tot.toLocaleString('en-IN')}</strong></span></div>
+    <table class="prt"><thead><tr><th>#</th><th>Date</th><th>Officer</th><th>Company</th><th>Street</th>
+      <th>Ward</th><th>Zone</th><th>Assessment</th><th>Type</th><th>Payment</th><th>Amount</th></tr></thead>
+    <tbody>${visits.map((v,i)=>`<tr><td>${i+1}</td><td>${new Date(v.ts).toLocaleString('en-IN')}</td>
+      <td>${v.offName}</td><td>${v.co}</td><td>${addr(v)}</td><td>${v.wd}</td><td>${v.zn}</td>
+      <td>${v.asn||'—'}</td><td>${v.isNew?'New App':'Existing'}</td>
+      <td>${(PAYLBL[v.pay]||PAYLBL.not_paid).t.replace(/^\S+\s/,'')}</td><td>${v.pay==='paid'?v.amt.toLocaleString('en-IN'):'—'}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td colspan="10"><strong>TOTAL</strong></td><td><strong>₹${tot.toLocaleString('en-IN')}</strong></td></tr></tfoot></table>
+  </div>`;
+  const pa=$('pra');pa.innerHTML=html;pa.style.display='block';
+  window.print();setTimeout(()=>{pa.style.display='none';},1500);
+}
+
+/* ══ ADMIN INIT ══ */
+function initAdm(){$('anam').textContent=CU.name;popOffDrops();aNav('dash');}
+function aNav(v){
+  ['dash','vis','offs','att','track','rpt','set'].forEach(x=>{
+    const ni=$('an-'+x),vi=$('av-'+x);
+    if(ni)ni.classList.toggle('on',x===v);if(vi)vi.classList.toggle('on',x===v);
+  });
+  closeSB();
+  if(v==='dash')loadDash();if(v==='vis')loadAV();if(v==='offs')loadOffs();
+  if(v==='att')loadAttAdm();
+  if(v==='track')loadTrack();if(v==='rpt')loadARpt();if(v==='set')loadSet();
+}
+
+/* ══ ADMIN DASHBOARD ══ */
+function loadDash(){
+  const V=DB.visits(),U=DB.users(),A=DB.alerts(),offs=U.filter(u=>u.role==='off');
+  const today=new Date().toISOString().split('T')[0];
+  const tv=V.filter(v=>v.date===today),paid=V.filter(v=>v.pay==='paid');
+  const tAmt=paid.reduce((s,v)=>s+v.amt,0),tdAmt=tv.filter(v=>v.pay==='paid').reduce((s,v)=>s+v.amt,0);
+  const comps=new Set(V.map(v=>v.co)).size;
+
+  $('astats').innerHTML=`
+    <div class="sc"><div class="si" style="background:var(--bll);">📋</div><div class="sv">${V.length}</div><div class="sl">Total Visits</div></div>
+    <div class="sc"><div class="si" style="background:var(--aml);">📅</div><div class="sv">${tv.length}</div><div class="sl">Today's Visits</div></div>
+    <div class="sc"><div class="si" style="background:var(--gnl);">₹</div><div class="sv" style="font-size:18px;">₹${tAmt.toLocaleString('en-IN')}</div><div class="sl">Total Collected</div></div>
+    <div class="sc"><div class="si" style="background:var(--gnl);">🌅</div><div class="sv" style="font-size:18px;">₹${tdAmt.toLocaleString('en-IN')}</div><div class="sl">Today's Collection</div></div>
+    <div class="sc"><div class="si" style="background:var(--bll);">👥</div><div class="sv">${offs.length}</div><div class="sl">Field Officers</div></div>
+    <div class="sc"><div class="si" style="background:${A.length?'var(--rdl)':'var(--gnl)'};">${A.length?'⚠️':'✅'}</div><div class="sv">${A.length}</div><div class="sl">Dup. Alerts</div></div>
+    <div class="sc"><div class="si" style="background:var(--bll);">🏢</div><div class="sv">${comps}</div><div class="sl">Companies</div></div>
+    <div class="sc"><div class="si" style="background:var(--bll);">📄</div><div class="sv">${V.filter(v=>v.isNew).length}</div><div class="sl">New Applications</div></div>
+  `;
+  $('aalerts').innerHTML=A.length?[...A].reverse().map(a=>`<div class="ac">
+    <div style="font-weight:700;color:var(--rd);">⚠️ ${a.co} — ${a.asn||'—'}</div>
+    <div style="color:var(--mu);font-size:11px;margin-top:2px;">By <strong>${a.offName}</strong> — ${new Date(a.ts).toLocaleString('en-IN')}</div>
+    <div style="font-size:11.5px;margin-top:3px;">Reason: ${a.reason}</div>
+  </div>`).join(''):'<div class="empty"><div class="ei">✅</div><p>No duplicate alerts</p></div>';
+
+  const recent=[...V].reverse().slice(0,6);
+  $('arecent').innerHTML=recent.length?recent.map(v=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--br);">
+      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${v.co}</div>
+        <div style="font-size:11px;color:var(--mu);">${v.offName} — ${new Date(v.ts).toLocaleString('en-IN')}</div>
+      </div><span class="bdg ${(PAYLBL[v.pay]||PAYLBL.not_paid).c}">${(PAYLBL[v.pay]||PAYLBL.not_paid).t}</span>
+    </div>`).join(''):'<div class="empty"><div class="ei">📋</div><p>No visits yet</p></div>';
+
+  /* OFFICER ACTIVITY + COMPANY NAMES */
+  const rows=offs.map(o=>{
+    const mv=tv.filter(v=>v.offId===o.id),ma=mv.filter(v=>v.pay==='paid').reduce((s,v)=>s+v.amt,0);
+    const cos=[...new Set(mv.map(v=>v.co))];
+    const cosHtml=cos.length?cos.slice(0,3).map(c=>`<span class="bdg db" style="font-size:10px;">${c}</span>`).join(' ')+(cos.length>3?` +${cos.length-3} more`:''):'<span style="color:var(--mu);font-size:12px;">—</span>';
+    return `<tr>
+      <td><strong>${o.name}</strong><br><span style="font-size:11px;color:var(--mu);">${o.zone||'—'}</span></td>
+      <td style="text-align:center;font-weight:700;color:var(--bl);">${mv.length}</td>
+      <td>${cosHtml}</td>
+      <td style="text-align:right;font-weight:700;color:var(--gn);">₹${ma.toLocaleString('en-IN')}</td>
+    </tr>`;
+  }).join('');
+  $('aactiv').innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr>
+      <th style="text-align:left;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Officer</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Visits</th>
+      <th style="padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Companies Visited Today</th>
+      <th style="text-align:right;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Collection</th>
+    </tr></thead><tbody>${rows||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--mu);">No officers</td></tr>'}</tbody>
+  </table></div>`;
+}
+function clrAlerts(){openModal('🗑️','Clear Alerts?','Remove all duplicate alerts?',()=>{DB.saveA([]);loadDash();toast('Cleared','blue');},true);}
+
+/* ══ ADMIN ALL VISITS ══ */
+function loadAV(){popOffDrops();filterAV();}
+function filterAV(){
+  const q=($('avs')?.value||'').toLowerCase(),off=$('foff')?.value,pay=$('fpay')?.value,dt=$('fdt')?.value;
+  let V=DB.visits();
+  if(off)V=V.filter(v=>v.offId==off);if(pay)V=V.filter(v=>v.pay===pay);
+  if(dt)V=V.filter(v=>v.date===dt);
+  if(q)V=V.filter(v=>v.co.toLowerCase().includes(q)||(v.dno||'').toLowerCase().includes(q)||v.st.toLowerCase().includes(q)||
+    v.offName.toLowerCase().includes(q)||v.wd.toLowerCase().includes(q)||
+    v.zn.toLowerCase().includes(q)||(v.asn||'').toLowerCase().includes(q));
+  renderTbl(V,'avtb',true);
+  const cnt=$('avcnt');if(cnt)cnt.textContent=`${V.length} visit${V.length!==1?'s':''}`;
+}
+function clrAV(){$('avs').value='';$('foff').value='';$('fpay').value='';$('fdt').value='';filterAV();}
+
+/* ══ OFFICERS LIST (with company names) ══ */
+function loadOffs(){
+  const U=DB.users(),V=DB.visits(),today=new Date().toISOString().split('T')[0];
+  const offs=U.filter(u=>u.role==='off');
+  const tb=$('offtb');
+  tb.innerHTML=offs.map((o,i)=>{
+    const mv=V.filter(v=>v.offId===o.id),td=mv.filter(v=>v.date===today);
+    const amt=mv.filter(v=>v.pay==='paid').reduce((s,v)=>s+v.amt,0);
+    const todCos=[...new Set(td.map(v=>v.co))];
+    const cosHtml=todCos.length?todCos.slice(0,3).map(c=>`<span class="bdg db" style="font-size:10px;">${c}</span>`).join(' ')+(todCos.length>3?`+${todCos.length-3}`:''):'—';
+    return `<tr>
+      <td>${i+1}</td><td><strong>${o.name}</strong></td><td><code>${o.user}</code></td><td>${o.zone||'—'}</td>
+      <td style="color:var(--bl);font-weight:700;">${mv.length}</td>
+      <td style="color:var(--tl);font-weight:700;">${td.length}</td>
+      <td>${cosHtml}</td>
+      <td style="color:var(--gn);font-weight:700;">₹${amt.toLocaleString('en-IN')}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--mu);">No field officers</td></tr>';
+}
+
+/* ══ GPS TRACKING ADMIN ══ */
+function loadTrack(){
+  const TR=DB.track(),offs=DB.users().filter(u=>u.role==='off');
+  setTimeout(()=>{initAdmMap();updateAdmMap();},200);
+  const c=$('atrk'),now=Date.now(),today=new Date().toISOString().split('T')[0];
+  c.innerHTML=offs.map(o=>{
+    const t=TR[o.id],lastSeen=t?.lastSeen?new Date(t.lastSeen).toLocaleString('en-IN'):'Never';
+    const lp=t?.pts?.[t.pts.length-1],todPts=(t?.pts||[]).filter(p=>p.ts.startsWith(today));
+    const online=t?.lastSeen&&(now-new Date(t.lastSeen).getTime()<5*60*1000);
+    return `<div style="background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:10px;border:1px solid rgba(255,255,255,.8);">
+      <div style="width:46px;height:46px;background:linear-gradient(135deg,var(--bl),var(--tl));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(26,86,219,.3);">${o.name[0]}</div>
+      <div style="flex:1;"><div style="font-weight:700;font-size:15px;">${o.name}</div>
+        <div style="font-size:12px;color:var(--mu);">Zone: ${o.zone||'—'} | Last seen: ${lastSeen}</div>
+        ${lp?`<div style="font-size:12px;color:var(--tl);margin-top:3px;">📍 ${lp.lat}, ${lp.lng}</div>`:''}
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:22px;font-weight:800;color:var(--bl);">${todPts.length}</div>
+        <div style="font-size:11px;color:var(--mu);">pts today</div>
+        <div class="${online?'gpsi':'bdg dm'}" style="margin-top:6px;font-size:11px;">${online?'<div class="gpsd"></div> Online':'⭕ Offline'}</div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty"><div class="ei">👥</div><p>No field officers</p></div>';
+}
+
+/* ══ OFFICER ROUTE & VISIT DETAILS (Admin) ══ */
+let rMap=null,rMarks=[],rLine=null;
+function showOfficerRoute(){
+  const offId=$('rt-off').value,date=$('rt-date').value;
+  if(!offId||!date){toast('Select officer and date','amber');return;}
+  if(typeof L==='undefined'){toast('Map library unavailable (offline?)','amber');return;}
+  const TR=DB.track(),t=TR[offId];
+  const pts=(t?.pts||[]).filter(p=>p.ts.startsWith(date));
+  const V=DB.visits().filter(v=>v.offId==offId&&v.date===date);
+  if(!rMap){
+    rMap=L.map('route-map').setView([20.5937,78.9629],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(rMap);
+  }
+  rMarks.forEach(m=>rMap.removeLayer(m));rMarks=[];
+  if(rLine){rMap.removeLayer(rLine);rLine=null;}
+  if(!pts.length&&!V.length){
+    toast('No GPS/visit data for that officer & date','amber');
+    $('rt-list').innerHTML='<div class="empty"><div class="ei">📍</div><p>No route data for selected officer/date</p></div>';
+    setTimeout(()=>rMap.invalidateSize(),200);return;
+  }
+  const latlngs=pts.map(p=>[parseFloat(p.lat),parseFloat(p.lng)]);
+  if(latlngs.length>1)rLine=L.polyline(latlngs,{color:'#1a56db',weight:4,opacity:.7}).addTo(rMap);
+  pts.forEach((p,i)=>{
+    const ic=L.divIcon({html:`<div style="background:#1a56db;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.3);">${i+1}</div>`,iconSize:[26,26],className:''});
+    rMarks.push(L.marker([parseFloat(p.lat),parseFloat(p.lng)],{icon:ic}).addTo(rMap).bindPopup(`🕐 ${new Date(p.ts).toLocaleTimeString('en-IN')}`));
+  });
+  V.forEach(v=>{
+    if(!v.lat)return;
+    const ic=L.divIcon({html:`<div style="background:var(--gn);color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.35);">🏢</div>`,iconSize:[30,30],className:''});
+    rMarks.push(L.marker([parseFloat(v.lat),parseFloat(v.lng)],{icon:ic}).addTo(rMap).bindPopup(`<strong>${v.co}</strong><br>🕐 ${new Date(v.ts).toLocaleTimeString('en-IN')}<br>${addr(v)}`));
+  });
+  const allPts=[...latlngs,...V.filter(v=>v.lat).map(v=>[parseFloat(v.lat),parseFloat(v.lng)])];
+  if(allPts.length)rMap.fitBounds(allPts,{padding:[30,30]});
+  setTimeout(()=>rMap.invalidateSize(),200);
+  const items=[...pts.map(p=>({t:p.ts,html:`📍 ${p.lat}, ${p.lng}`,v:false})),...V.map(v=>({t:v.ts,html:`<strong>${v.co}</strong> — ${addr(v)}`,v:true}))]
+    .sort((a,b)=>new Date(a.t)-new Date(b.t));
+  $('rt-list').innerHTML=items.map((it,i)=>`<div class="wpitem"><div class="wpdot${it.v?' wpv':''}">${it.v?'🏢':i+1}</div><div>🕐 ${new Date(it.t).toLocaleTimeString('en-IN')} — ${it.html}</div></div>`).join('');
+}
+function downloadRoutePDF(){
+  const offId=$('rt-off').value,date=$('rt-date').value;
+  if(!offId||!date){toast('Select officer and date first','amber');return;}
+  const off=DB.users().find(u=>u.id==offId);
+  const TR=DB.track(),t=TR[offId];
+  const pts=(t?.pts||[]).filter(p=>p.ts.startsWith(date));
+  const V=DB.visits().filter(v=>v.offId==offId&&v.date===date);
+  const paid=V.filter(v=>v.pay==='paid'),tot=paid.reduce((s,v)=>s+v.amt,0);
+  const html=`<div class="pr">
+    <div class="prh"><h2>📋 Survey Application</h2><h3>Officer Route &amp; Visit Details</h3>
+      <p>Officer: <strong>${off?.name||'?'}</strong> | Date: <strong>${date}</strong> | Printed: ${new Date().toLocaleString('en-IN')}</p></div>
+    <div class="prm"><span>Visits: <strong>${V.length}</strong></span><span>Paid: <strong>${paid.length}</strong></span>
+      <span>Amount: <strong>₹${tot.toLocaleString('en-IN')}</strong></span><span>GPS Points: <strong>${pts.length}</strong></span></div>
+    <table class="prt"><thead><tr><th>#</th><th>Time</th><th>Company</th><th>Street</th><th>Ward/Zone</th>
+      <th>Payment</th><th>Amount</th><th>App. Status</th><th>Remarks</th></tr></thead>
+    <tbody>${V.map((v,i)=>`<tr><td>${i+1}</td><td>${new Date(v.ts).toLocaleTimeString('en-IN')}</td>
+      <td>${v.co}</td><td>${addr(v)}</td><td>${v.wd}/${v.zn}</td>
+      <td>${(PAYLBL[v.pay]||PAYLBL.not_paid).t.replace(/^\S+\s/,'')}</td><td>${v.pay==='paid'?v.amt.toLocaleString('en-IN'):'—'}</td>
+      <td>${v.appStatus?(ASLBL[v.appStatus]||v.appStatus):'—'}</td><td>${v.appRemarks||'—'}</td></tr>`).join('')||'<tr><td colspan="9">No visits recorded</td></tr>'}
+    </tbody></table>
+    <h3 style="margin-top:18px;font-size:13px;">GPS Route — Time-marked Waypoints</h3>
+    <table class="prt"><thead><tr><th>#</th><th>Time</th><th>Latitude</th><th>Longitude</th></tr></thead>
+    <tbody>${pts.map((p,i)=>`<tr><td>${i+1}</td><td>${new Date(p.ts).toLocaleTimeString('en-IN')}</td><td>${p.lat}</td><td>${p.lng}</td></tr>`).join('')||'<tr><td colspan="4">No GPS points recorded</td></tr>'}
+    </tbody></table>
+  </div>`;
+  const pa=$('pra');pa.innerHTML=html;pa.style.display='block';
+  window.print();setTimeout(()=>{pa.style.display='none';},1500);
+}
+
+/* ══ ATTENDANCE ADMIN ══ */
+function loadAttAdm(){
+  popOffDrops();
+  const today=new Date().toISOString().split('T')[0];
+  if(!$('att-day').value)$('att-day').value=today;
+  if(!$('rt-date').value)$('rt-date').value=today;
+  $('att-mo').value=new Date().getMonth();$('att-yr').value=new Date().getFullYear();
+  renderAttDay();renderAttMonth();
+}
+function renderAttDay(){
+  const date=$('att-day').value,off=$('att-day-off').value;
+  let A=DB.attendance().filter(a=>a.date===date);
+  if(off)A=A.filter(a=>a.offId==off);
+  const tb=$('attdaytb');
+  if(!A.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--mu);">No attendance marked for this date</td></tr>';return;}
+  tb.innerHTML=A.map(a=>`<tr>
+    <td><strong>${a.offName}</strong></td>
+    <td><span class="bdg ${a.status==='present'?'dg':a.status==='absent'?'dr':'da'}">${ATLBL[a.status]}</span></td>
+    <td>${a.presentTime||'—'}</td><td>${a.remarks||'—'}</td>
+    <td style="font-size:11px;color:var(--mu);">${a.lat?`${a.lat},<br>${a.lng}`:'—'}</td>
+  </tr>`).join('');
+}
+function renderAttMonth(){
+  const mo=parseInt($('att-mo').value),yr=parseInt($('att-yr').value);
+  const A=DB.attendance().filter(a=>{const d=new Date(a.date);return d.getMonth()===mo&&d.getFullYear()===yr;});
+  const offs=DB.users().filter(u=>u.role==='off');
+  const rows=offs.map(o=>{
+    const ma=A.filter(a=>a.offId===o.id);
+    return{name:o.name,present:ma.filter(a=>a.status==='present').length,
+      absent:ma.filter(a=>a.status==='absent').length,office:ma.filter(a=>a.status==='office').length};
+  });
+  const tb=$('attmonthtb');
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td><strong>${r.name}</strong></td>
+    <td style="color:var(--gn);font-weight:700;text-align:center;">${r.present}</td>
+    <td style="color:var(--rd);font-weight:700;text-align:center;">${r.absent}</td>
+    <td style="color:var(--am);font-weight:700;text-align:center;">${r.office}</td>
+  </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--mu);">No data</td></tr>';
+}
+function downloadAttPDF(type){
+  let title,period,rowsHtml;
+  if(type==='day'){
+    const date=$('att-day').value,off=$('att-day-off').value;
+    let A=DB.attendance().filter(a=>a.date===date);if(off)A=A.filter(a=>a.offId==off);
+    title='Day-wise Attendance Report';period=date;
+    rowsHtml=`<table class="prt"><thead><tr><th>#</th><th>Officer</th><th>Status</th><th>Present Time</th><th>Remarks</th></tr></thead>
+      <tbody>${A.map((a,i)=>`<tr><td>${i+1}</td><td>${a.offName}</td><td>${ATLBL[a.status]}</td><td>${a.presentTime||'—'}</td><td>${a.remarks||'—'}</td></tr>`).join('')||'<tr><td colspan="5">No data</td></tr>'}</tbody></table>`;
+  } else {
+    const mo=parseInt($('att-mo').value),yr=parseInt($('att-yr').value);
+    const A=DB.attendance().filter(a=>{const d=new Date(a.date);return d.getMonth()===mo&&d.getFullYear()===yr;});
+    const offs=DB.users().filter(u=>u.role==='off');
+    title='Month-wise Attendance Summary';period=`${MO[mo]} ${yr}`;
+    rowsHtml=`<table class="prt"><thead><tr><th>#</th><th>Officer</th><th>Present</th><th>Absent</th><th>In Office</th></tr></thead>
+      <tbody>${offs.map((o,i)=>{const ma=A.filter(a=>a.offId===o.id);
+        return `<tr><td>${i+1}</td><td>${o.name}</td><td>${ma.filter(a=>a.status==='present').length}</td><td>${ma.filter(a=>a.status==='absent').length}</td><td>${ma.filter(a=>a.status==='office').length}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  }
+  const html=`<div class="pr"><div class="prh"><h2>📋 Survey Application</h2><h3>${title}</h3>
+    <p>Period: <strong>${period}</strong> | Printed: ${new Date().toLocaleString('en-IN')}</p></div>${rowsHtml}</div>`;
+  const pa=$('pra');pa.innerHTML=html;pa.style.display='block';
+  window.print();setTimeout(()=>{pa.style.display='none';},1500);
+}
+
+/* ══ ADMIN REPORTS ══ */
+function loadARpt(){
+  popOffDrops();
+  const now=new Date();
+  const moOpts=Array.from({length:6},(_,i)=>{
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    return `<option value="${d.getFullYear()}-${d.getMonth()}">${MO[d.getMonth()]} ${d.getFullYear()}</option>`;
+  }).join('');
+  const ss=$('sumsel');if(ss)ss.innerHTML=moOpts;
+  const cs=$('co-sum-sel');if(cs)cs.innerHTML=moOpts;
+  $('armo').value=now.getMonth();$('aryr').value=now.getFullYear();
+  renderSum();renderCoSum();
+}
+function renderSum(){
+  const val=$('sumsel')?.value||'';
+  const cs=$('co-sum-sel');if(cs&&cs.value!==val&&val)cs.value=val;
+  const[yr,mo]=val?val.split('-').map(Number):[new Date().getFullYear(),new Date().getMonth()];
+  const V=DB.visits().filter(v=>{const d=new Date(v.date);return d.getFullYear()===yr&&d.getMonth()===mo;});
+  const offs=DB.users().filter(u=>u.role==='off');
+  const rows=offs.map(o=>{const mv=V.filter(v=>v.offId===o.id),pd=mv.filter(v=>v.pay==='paid');
+    return{name:o.name,zone:o.zone,tot:mv.length,paid:pd.length,amt:pd.reduce((s,v)=>s+v.amt,0)};
+  }).sort((a,b)=>b.tot-a.tot);
+  const sb=$('sumbody');
+  if(!rows.length){sb.innerHTML='<div class="empty"><div class="ei">📊</div><p>No data</p></div>';return;}
+  sb.innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr>
+      <th style="text-align:left;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Officer</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Total</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Paid</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Not Paid</th>
+      <th style="text-align:right;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Amount</th>
+    </tr></thead><tbody>
+      ${rows.map(r=>`<tr>
+        <td style="padding:11px 9px;border-bottom:1px solid #f3f4f6;"><strong>${r.name}</strong><br><span style="font-size:11px;color:var(--mu);">${r.zone||'—'}</span></td>
+        <td style="padding:11px 9px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:800;font-size:17px;color:var(--bl);">${r.tot}</td>
+        <td style="padding:11px 9px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:700;color:var(--gn);">${r.paid}</td>
+        <td style="padding:11px 9px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:700;color:var(--rd);">${r.tot-r.paid}</td>
+        <td style="padding:11px 9px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:700;color:var(--gn);font-size:14px;">₹${r.amt.toLocaleString('en-IN')}</td>
+      </tr>`).join('')}
+      <tr style="background:#f8fafc;">
+        <td style="padding:11px 9px;font-weight:700;">TOTAL</td>
+        <td style="padding:11px 9px;text-align:center;font-weight:800;color:var(--bl);">${rows.reduce((s,r)=>s+r.tot,0)}</td>
+        <td style="padding:11px 9px;text-align:center;font-weight:700;color:var(--gn);">${rows.reduce((s,r)=>s+r.paid,0)}</td>
+        <td style="padding:11px 9px;text-align:center;font-weight:700;color:var(--rd);">${rows.reduce((s,r)=>s+r.tot-r.paid,0)}</td>
+        <td style="padding:11px 9px;text-align:right;font-weight:700;color:var(--gn);">₹${rows.reduce((s,r)=>s+r.amt,0).toLocaleString('en-IN')}</td>
+      </tr>
+    </tbody></table></div>`;
+}
+
+/* ══ COMPANY-WISE SUMMARY ══ */
+function renderCoSum(){
+  const val=$('co-sum-sel')?.value||$('sumsel')?.value||'';
+  const[yr,mo]=val?val.split('-').map(Number):[new Date().getFullYear(),new Date().getMonth()];
+  const q=($('co-srch')?.value||'').toLowerCase();
+  let V=DB.visits().filter(v=>{const d=new Date(v.date);return d.getFullYear()===yr&&d.getMonth()===mo;});
+  if(q)V=V.filter(v=>v.co.toLowerCase().includes(q));
+  const cos={};
+  V.forEach(v=>{
+    if(!cos[v.co])cos[v.co]={name:v.co,tot:0,paid:0,notpaid:0,amt:0,officers:new Set()};
+    cos[v.co].tot++;
+    if(v.pay==='paid'){cos[v.co].paid++;cos[v.co].amt+=v.amt;}
+    else cos[v.co].notpaid++;
+    cos[v.co].officers.add(v.offName);
+  });
+  const rows=Object.values(cos).sort((a,b)=>b.tot-a.tot);
+  const sb=$('cosumbody');if(!sb)return;
+  if(!rows.length){sb.innerHTML='<div class="empty"><div class="ei">🏢</div><p>No company data for selected period</p></div>';return;}
+  sb.innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr>
+      <th style="text-align:left;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">#</th>
+      <th style="text-align:left;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Company Name</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Total</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Paid</th>
+      <th style="text-align:center;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Not Paid</th>
+      <th style="text-align:right;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Amount</th>
+      <th style="text-align:left;padding:9px;border-bottom:1px solid var(--br);background:#f8fafc;font-size:11px;text-transform:uppercase;color:var(--mu);">Officers</th>
+    </tr></thead>
+    <tbody>${rows.map((r,i)=>`<tr>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;color:var(--mu);">${i+1}</td>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;"><strong>${r.name}</strong></td>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:800;font-size:16px;color:var(--bl);">${r.tot}</td>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:700;color:var(--gn);">${r.paid}</td>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:700;color:var(--rd);">${r.notpaid}</td>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:700;color:var(--gn);">₹${r.amt.toLocaleString('en-IN')}</td>
+      <td style="padding:10px 9px;border-bottom:1px solid #f3f4f6;font-size:12px;color:var(--mu);">${[...r.officers].join(', ')}</td>
+    </tr>`).join('')}
+    <tfoot><tr>
+      <td colspan="2" style="padding:10px 9px;font-weight:700;">TOTAL</td>
+      <td style="padding:10px 9px;text-align:center;font-weight:800;color:var(--bl);">${rows.reduce((s,r)=>s+r.tot,0)}</td>
+      <td style="padding:10px 9px;text-align:center;font-weight:700;color:var(--gn);">${rows.reduce((s,r)=>s+r.paid,0)}</td>
+      <td style="padding:10px 9px;text-align:center;font-weight:700;color:var(--rd);">${rows.reduce((s,r)=>s+r.notpaid,0)}</td>
+      <td style="padding:10px 9px;text-align:right;font-weight:700;color:var(--gn);">₹${rows.reduce((s,r)=>s+r.amt,0).toLocaleString('en-IN')}</td>
+      <td style="padding:10px 9px;color:var(--mu);">${new Set(V.map(v=>v.offName)).size} officers</td>
+    </tr></tfoot>
+  </table></div>`;
+}
+
+/* ══ SETTINGS — FULL CRUD ══ */
+function loadSet(){
+  const U=DB.users(),V=DB.visits();
+  const tb=$('settb');
+  tb.innerHTML=U.map((u,i)=>`<tr>
+    <td>${i+1}</td><td><strong>${u.name}</strong></td><td><code>${u.user}</code></td>
+    <td><span class="bdg ${u.role==='admin'?'dr':'db'}">${u.role==='admin'?'🛡️ Admin':'👤 Officer'}</span></td>
+    <td>${u.zone||'—'}</td>
+    <td>${u.co?`<span class="bdg db">${u.co}</span>`:'<span style="color:var(--mu)">—</span>'}</td>
+    <td style="color:var(--bl);font-weight:700;">${V.filter(v=>v.offId===u.id).length}</td>
+    <td><button class="btn bo bsm" onclick="openUserModal(${u.id})">✏️ Edit</button></td>
+    <td>${u.role!=='admin'||U.filter(x=>x.role==='admin').length>1?
+      `<button class="btn br bsm" onclick="delUser(${u.id})">🗑️ Delete</button>`:
+      '<span class="muted">Protected</span>'}</td>
+  </tr>`).join('');
+}
+
+function openUserModal(id){
+  const U=DB.users(),user=id?U.find(u=>u.id===id):null;
+  $('um-title').textContent=user?'✏️ Edit User':'➕ Add New User';
+  $('um-name').value=user?.name||'';$('um-user').value=user?.user||'';
+  $('um-pass').value=user?.pass||'';$('um-role').value=user?.role||'off';
+  $('um-zone').value=user?.zone||'';$('um-co').value=user?.co||'';$('um-id').value=id||'';
+  toggleZoneField();$('user-modal').classList.add('op');
+}
+function closeUserModal(){$('user-modal').classList.remove('op');}
+function toggleZoneField(){
+  const r=$('um-role').value;
+  $('um-zone-wrap').style.display=r==='admin'?'none':'block';
+}
+function saveUser(){
+  const n=$('um-name').value.trim(),u=$('um-user').value.trim(),
+        p=$('um-pass').value,r=$('um-role').value,z=$('um-zone').value,co=$('um-co').value.trim();
+  const editId=$('um-id').value;
+  if(!n||!u||!p){toast('Fill all required fields','amber');return;}
+  const U=DB.users();
+  if(!editId){
+    if(U.find(x=>x.user===u)){toast('Username already exists','red');return;}
+    U.push({id:Date.now(),name:n,user:u,pass:p,role:r,zone:z,co});
+    toast(`User "${n}" added!`,'green');
+  } else {
+    const idx=U.findIndex(x=>x.id==editId);
+    if(idx<0){toast('User not found','red');return;}
+    if(U.find(x=>x.user===u&&x.id!=editId)){toast('Username already exists','red');return;}
+    U[idx]={...U[idx],name:n,user:u,pass:p,role:r,zone:z,co};
+    toast(`User "${n}" updated!`,'green');
+  }
+  DB.saveU(U);popOffDrops();closeUserModal();loadSet();
+}
+function delUser(id){
+  const U=DB.users(),user=U.find(u=>u.id===id);
+  if(!user)return;
+  openModal('⚠️',`Delete "${user.name}"?`,'This will remove the user. Their visits remain.',()=>{
+    DB.saveU(DB.users().filter(u=>u.id!==id));popOffDrops();loadSet();toast('User deleted','blue');
+  },true);
+  const ok=$('mok');ok.textContent='Delete';ok.style.background='var(--rd)';
+  const orig=ok.onclick;ok.onclick=()=>{closeModal();DB.saveU(DB.users().filter(u=>u.id!==id));ok.textContent='OK';ok.style.background='';popOffDrops();loadSet();toast('User deleted','blue');};
+}
+function clrVisits(){openModal('🗑️','Clear All Visits?','Cannot be undone.',()=>{DB.saveV([]);DB.saveA([]);toast('Cleared','amber');},true);}
+
+/* ══ HELPERS ══ */
+function popOffDrops(){
+  const offs=DB.users().filter(u=>u.role==='off');
+  const opts='<option value="">All Officers</option>'+offs.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+  ['foff','ardoff','armoff','att-day-off'].forEach(id=>{const el=$(id);if(el){const cv=el.value;el.innerHTML=opts;el.value=cv;}});
+  const rtOpts='<option value="">Select Officer</option>'+offs.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+  const rt=$('rt-off');if(rt){const cv=rt.value;rt.innerHTML=rtOpts;rt.value=cv;}
+}
+
+/* ══ INIT ══ */
+document.addEventListener('DOMContentLoaded',()=>{
+  try{
+    DB.users();seedDemo();showScr('sl');setRole('admin');
+    if(!LS_OK)toast('Note: private/restricted browsing detected — data will not be saved after closing this tab','amber');
+  }catch(err){
+    console.error('Init error:',err);
+    document.body.innerHTML='<div style="padding:40px;text-align:center;font-family:sans-serif;color:#e02424;">⚠️ App failed to start: '+err.message+'<br><br>Try opening this file in Chrome instead of the built-in browser/preview app.</div>';
+  }
+});
+</script>
+</body>
+</html>

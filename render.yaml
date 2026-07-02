@@ -1,0 +1,18 @@
+databases:
+  - name: survey-db
+    plan: free
+
+services:
+  - type: web
+    name: survey-app
+    env: node
+    plan: free
+    buildCommand: "npm install && npm run build && cd server && npm install"
+    startCommand: "node server/server.js"
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: survey-db
+          property: connectionString
