@@ -57,7 +57,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
 
   const loadVisits = async () => {
     try {
-      const data = await DB.visits();
+     const data = await DB.todayVisits(user.id);
       setVisitsList(data);
     } catch (err) {
       console.error('Failed to load visits:', err);

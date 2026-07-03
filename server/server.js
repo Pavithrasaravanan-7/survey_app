@@ -175,6 +175,21 @@ app.get('/api/visits', async (req, res) => {
   res.json(rows.map(rowToVisit));
 });
 
+app.get('/api/visits/today/:offId', async (req, res) => {
+  const { offId } = req.params;
+
+  const { rows } = await query(
+    `SELECT *
+     FROM visits
+     WHERE off_id = $1
+     AND date = CURRENT_DATE
+     ORDER BY ts DESC`,
+    [offId]
+  );
+
+  res.json(rows.map(mapVisit));
+});
+
 app.post('/api/visits', async (req, res) => {
   const v = req.body;
   if (!v.co || !v.offName || !v.offId) {

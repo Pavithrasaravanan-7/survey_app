@@ -22,9 +22,8 @@ export default function MyVisits({ user, showPhotoModal }) {
 
   const loadVisits = async () => {
     try {
-      const data = await DB.visits();
-      const list = data.filter((v) => v.offId === user.id);
-      setVisits(list);
+     const data = await DB.todayVisits(user.id);
+      setVisits(data);
     } catch (err) {
       console.error('Failed to load visits:', err);
     }

@@ -62,6 +62,11 @@ export const DB = {
     if (!res.ok) throw new Error('Failed to load visits');
     return await res.json();
   },
+  async todayVisits(offId) {
+  const res = await fetch(`${API_BASE}/visits/today/${offId}`);
+  if (!res.ok) throw new Error("Failed to load today's visits");
+  return await res.json();
+},
 
   async saveVisit(visit) {
     const res = await fetch(`${API_BASE}/visits`, {
