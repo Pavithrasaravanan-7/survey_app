@@ -21,6 +21,7 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
   const [cameraLoading, setCameraLoading] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState(null); // base64 data URL
   const [photoMeta, setPhotoMeta] = useState(null);
+  const [cameraMode, setCameraMode] = useState('user'); // 'user' or 'environment'
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   
@@ -168,7 +169,7 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
     };
   }, [cameraActive]);
 
-  const startCamera = async () => {
+  const startCamera = async (preferredMode = cameraMode) => {
     setCameraReady(false);
     setCameraLoading(true);
 
@@ -196,8 +197,8 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
       }
 
       const constraintsList = [
-        { video: { facingMode: { ideal: 'user' } }, audio: false },
-        { video: { facingMode: { ideal: 'environment' } }, audio: false },
+        { video: { facingMode: { ideal: preferredMode } }, audio: false },
+        { video: { facingMode: { ideal: preferredMode === 'user' ? 'environment' : 'user' } }, audio: false },
         { video: true, audio: false },
       ];
 
@@ -240,6 +241,15 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
     setCameraActive(false);
     setCameraReady(false);
     setCameraLoading(false);
+  };
+
+  const toggleCameraMode = () => {
+    const nextMode = cameraMode === 'environment' ? 'user' : 'environment';
+    setCameraMode(nextMode);
+    stopCamera();
+    setTimeout(() => {
+      startCamera(nextMode);
+    }, 150);
   };
 
   const stampAndFinish = (canvas, ctx, name) => {
@@ -576,7 +586,25 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
 
                 {!cameraActive && !cameraLoading && !capturedPhoto && (
                   <>
-                    <div className="pha" onClick={startCamera}>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <button
+                        type="button"
+                        className={`btn bsm ${cameraMode === 'environment' ? 'bb' : 'bo'}`}
+                        style={{ padding: '6px 12px', fontSize: '12.5px' }}
+                        onClick={() => setCameraMode('environment')}
+                      >
+                        📷 Back Camera
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn bsm ${cameraMode === 'user' ? 'bb' : 'bo'}`}
+                        style={{ padding: '6px 12px', fontSize: '12.5px' }}
+                        onClick={() => setCameraMode('user')}
+                      >
+                        🤳 Front/Selfie Camera
+                      </button>
+                    </div>
+                    <div className="pha" onClick={() => startCamera()}>
                       <div>
                         <div style={{ fontSize: '36px' }}>📷</div>
                         <p className="fw6 mt8">Tap to Open Camera</p>
@@ -624,6 +652,9 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
                       <button type="button" className="btn bo bsm" onClick={stopCamera}>
                         ✕ Cancel
                       </button>
+                      <button type="button" className="btn bo bsm" onClick={toggleCameraMode}>
+                        🔄 Switch Camera
+                      </button>
                       <button type="button" className="btn bb blg" onClick={capturePhoto} disabled={!cameraReady}>
                         📸 Capture Photo
                       </button>
@@ -657,7 +688,7 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
                 <input
                   type="file"
                   accept="image/*"
-                  capture="user"
+                  capture={cameraMode}
                   id="att-native-camera-fallback"
                   style={{ display: 'none' }}
                   onChange={handleNativeCameraCapture}

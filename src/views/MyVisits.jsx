@@ -15,7 +15,17 @@ const PAYLBL = {
   new_application: { t: '📄 New Application', c: 'da' },
 };
 
-export default function MyVisits({ user, showPhotoModal }) {
+const getLocalDateString = (tsStr) => {
+  if (!tsStr) return '';
+  const d = new Date(tsStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+export default function MyVisits({ user, showPhotoModal, showToast }) {
   const [visits, setVisits] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchDate, setSearchDate] = useState('');
@@ -41,7 +51,7 @@ export default function MyVisits({ user, showPhotoModal }) {
   const getFilteredVisits = () => {
     let result = [...visits];
     if (searchDate) {
-      result = result.filter((v) => v.date === searchDate);
+      result = result.filter((v) => v.date === searchDate || (v.ts && getLocalDateString(v.ts) === searchDate));
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -100,6 +110,7 @@ export default function MyVisits({ user, showPhotoModal }) {
                   <th>Payment</th>
                   <th>Amount</th>
                   <th>Photo</th>
+                  <th>Share</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,12 +172,68 @@ export default function MyVisits({ user, showPhotoModal }) {
                             <span style={{ color: 'var(--mu)' }}>—</span>
                           )}
                         </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn bb bsm"
+                            style={{
+                              backgroundColor: '#25d366',
+                              borderColor: '#25d366',
+                              color: '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              fontSize: '11.5px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                              const gstNo = v.docs?.gstNumber || '';
+                              const contactPerson = v.docs?.contactPerson || '';
+                              const email = v.docs?.email || '';
+                              const staffCount = v.docs?.staffCount || '';
+
+                              const formattedWhatsAppText = `ZONE : ${v.zn.toUpperCase()}
+
+WARD : ${v.wd}
+
+COMPANY NAME : ${v.co.toUpperCase()}
+
+CONTACT PERSON : ${contactPerson.toUpperCase()}
+
+MOBILE NUMBER : ${v.contact}
+
+E-mail 📩 : ${email}
+
+PROFESSIONAL TAX ASSESSMENT NUMBER : ${v.asn}
+
+GST NUMBER : ${gstNo}
+
+STAFF COUNT : ${staffCount ? String(staffCount).padStart(2, '0') : ''}
+
+REMARKS : ${(v.remarks || (v.pay === 'new_application' ? 'NEW APPLICATION' : v.pay)).toUpperCase()}`;
+
+                              navigator.clipboard.writeText(formattedWhatsAppText)
+                                .then(() => {
+                                  showToast('Copied to Clipboard! 📋', 'green');
+                                  setTimeout(() => {
+                                    window.open('https://chat.whatsapp.com/Bu7mRiit9qt6ZMLqzbjGxu?s=cl&p=a&ilr=0', '_blank');
+                                  }, 300);
+                                })
+                                .catch((err) => {
+                                  showToast('Failed to copy: ' + err.message, 'red');
+                                });
+                            }}
+                          >
+                            💬 WhatsApp
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: 'var(--mu)' }}>
+                    <td colSpan="10" style={{ textAlign: 'center', padding: '30px', color: 'var(--mu)' }}>
                       No visits found
                     </td>
                   </tr>

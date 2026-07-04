@@ -2,9 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { DB } from '../utils/db';
 
+const getLocalDateString = (tsStr) => {
+  if (!tsStr) return '';
+  const d = new Date(tsStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const OFFICER_COLORS = [
+  '#1a56db', '#0694a2', '#057a55', '#d97706', '#e02424',
+  '#7e3af2', '#c2780e', '#0b8a00', '#9061f9', '#a21caf'
+];
+
+const getOfficerColor = (id) => {
+  return OFFICER_COLORS[id % OFFICER_COLORS.length];
+};
+
 export default function AdminGPSTracking({ showToast }) {
   const [officers, setOfficers] = useState([]);
   const [liveTrackPoints, setLiveTrackPoints] = useState({});
+  const [visitsList, setVisitsList] = useState([]);
   const [selectedOfficer, setSelectedOfficer] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [routeWaypoints, setRouteWaypoints] = useState([]);
@@ -13,6 +33,7 @@ export default function AdminGPSTracking({ showToast }) {
   const liveMapRef = useRef(null);
   const liveMapInstance = useRef(null);
   const liveMarkers = useRef({});
+  const liveMapLayers = useRef([]);
 
   const routeMapRef = useRef(null);
   const routeMapInstance = useRef(null);
@@ -22,12 +43,14 @@ export default function AdminGPSTracking({ showToast }) {
 
   const loadData = async () => {
     try {
-      const [uList, tr] = await Promise.all([
+      const [uList, tr, vList] = await Promise.all([
         DB.users(),
-        DB.track()
+        DB.track(),
+        DB.visits()
       ]);
       setOfficers(uList.filter((u) => u.role === 'off'));
       setLiveTrackPoints(tr);
+      setVisitsList(vList);
     } catch (err) {
       console.error('Failed to load tracking data:', err);
     }
@@ -37,6 +60,20 @@ export default function AdminGPSTracking({ showToast }) {
     loadData();
     const interval = setInterval(loadData, 8000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Cleanup maps on unmount
+  useEffect(() => {
+    return () => {
+      if (liveMapInstance.current) {
+        liveMapInstance.current.remove();
+        liveMapInstance.current = null;
+      }
+      if (routeMapInstance.current) {
+        routeMapInstance.current.remove();
+        routeMapInstance.current = null;
+      }
+    };
   }, []);
 
   // 1. Live Map Rendering
@@ -55,32 +92,73 @@ export default function AdminGPSTracking({ showToast }) {
     return () => {
       // Keep persistent or cleanup
     };
-  }, [liveTrackPoints, officers]);
+  }, [liveTrackPoints, officers, visitsList]);
 
   const updateLiveMarkers = () => {
     const map = liveMapInstance.current;
     if (!map) return;
 
-    // Add marker for each officer last position
+    // Clear old layers
+    liveMapLayers.current.forEach((layer) => {
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    });
+    liveMapLayers.current = [];
+    liveMarkers.current = {};
+
+    const todayString = new Date().toISOString().split('T')[0];
+
+    // Add today's routes, visits, and last positions
     officers.forEach((o) => {
       const data = liveTrackPoints[o.id];
-      const lastPoint = data?.pts?.[data.pts.length - 1];
-      if (!lastPoint) return;
+      const pts = (data?.pts || []).filter((p) => getLocalDateString(p.ts) === todayString);
 
-      const ll = [parseFloat(lastPoint.lat), parseFloat(lastPoint.lng)];
+      // Draw polyline route for today
+      const latlngs = pts.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
+      if (latlngs.length > 1) {
+        const polyline = L.polyline(latlngs, {
+          color: getOfficerColor(o.id),
+          weight: 4,
+          opacity: 0.75,
+          dashArray: '5, 10'
+        }).addTo(map);
+        liveMapLayers.current.push(polyline);
+      }
 
-      if (liveMarkers.current[o.id]) {
-        liveMarkers.current[o.id].setLatLng(ll);
-      } else {
+      // Draw visited companies today by this officer
+      const visitsToday = visitsList.filter(
+        (v) => v.offId === o.id && (v.date === todayString || (v.ts && getLocalDateString(v.ts) === todayString))
+      );
+      visitsToday.forEach((v) => {
+        if (!v.lat || !v.lng) return;
         const ic = L.divIcon({
-          html: `<div style="background:var(--bl);color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.3); border:2px solid white;">${o.name[0]}</div>`,
+          html: `<div style="background:var(--gn);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:1.5px solid white;">🏢</div>`,
+          iconSize: [26, 26],
+          className: '',
+        });
+        const marker = L.marker([parseFloat(v.lat), parseFloat(v.lng)], { icon: ic })
+          .addTo(map)
+          .bindPopup(`<strong>${o.name} visited:</strong><br>🏢 ${v.co}<br>🕐 ${new Date(v.ts).toLocaleTimeString('en-IN')}<br>${v.dno ? v.dno + ', ' : ''}${v.st}`);
+        liveMapLayers.current.push(marker);
+      });
+
+      // Draw last seen marker
+      const lastPoint = pts[pts.length - 1] || data?.pts?.[data.pts.length - 1];
+      if (lastPoint) {
+        const ll = [parseFloat(lastPoint.lat), parseFloat(lastPoint.lng)];
+        const ic = L.divIcon({
+          html: `<div style="background:${getOfficerColor(o.id)};color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.3); border:2.5px solid white;">${o.name[0]}</div>`,
           iconSize: [32, 32],
           className: '',
         });
 
-        liveMarkers.current[o.id] = L.marker(ll, { icon: ic })
+        const marker = L.marker(ll, { icon: ic })
           .addTo(map)
           .bindPopup(`<strong>${o.name}</strong><br>📍 ${lastPoint.lat}, ${lastPoint.lng}<br>🕐 ${new Date(lastPoint.ts).toLocaleTimeString('en-IN')}`);
+        
+        liveMarkers.current[o.id] = marker;
+        liveMapLayers.current.push(marker);
       }
     });
 
@@ -131,8 +209,12 @@ export default function AdminGPSTracking({ showToast }) {
       ]);
       
       const trackData = TR[selectedOfficer];
-      const pts = (trackData?.pts || []).filter((p) => p.ts.startsWith(selectedDate));
-      const visits = V.filter((v) => v.offId === parseInt(selectedOfficer) && v.date === selectedDate);
+      const pts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      const visits = V.filter(
+        (v) =>
+          v.offId === parseInt(selectedOfficer) &&
+          (v.date === selectedDate || (v.ts && getLocalDateString(v.ts) === selectedDate))
+      );
 
       if (pts.length === 0 && visits.length === 0) {
         showToast('No GPS or visit data for that officer and date', 'amber');
@@ -216,8 +298,12 @@ export default function AdminGPSTracking({ showToast }) {
       ]);
       
       const trackData = TR[selectedOfficer];
-      const pts = (trackData?.pts || []).filter((p) => p.ts.startsWith(selectedDate));
-      const V = VList.filter((v) => v.offId === parseInt(selectedOfficer) && v.date === selectedDate);
+      const pts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      const V = VList.filter(
+        (v) =>
+          v.offId === parseInt(selectedOfficer) &&
+          (v.date === selectedDate || (v.ts && getLocalDateString(v.ts) === selectedDate))
+      );
       const paid = V.filter((v) => v.pay === 'paid');
       const totAmt = paid.reduce((sum, v) => sum + v.amt, 0);
 

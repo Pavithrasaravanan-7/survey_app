@@ -36,6 +36,7 @@ export default function App() {
   });
 
   const [previewPhoto, setPreviewPhoto] = useState(null); // stores visit details for photo viewer
+  const [visFilters, setVisFilters] = useState(null);
 
   // Geolocation state
   const [gps, setGps] = useState({ lat: null, lng: null, accuracy: null });
@@ -228,12 +229,26 @@ export default function App() {
             <AdminDashboard
               openConfirmationModal={openConfirmationModal}
               showToast={showToast}
+              onRedirect={(tab, filters) => {
+                if (filters) {
+                  setVisFilters(filters);
+                } else {
+                  setVisFilters(null);
+                }
+                setCurrentTab(tab);
+              }}
             />
           );
         case 'vis':
-          return <AdminAllVisits showPhotoModal={setPreviewPhoto} />;
+          return (
+            <AdminAllVisits
+              showPhotoModal={setPreviewPhoto}
+              initialFilters={visFilters}
+              clearInitialFilters={() => setVisFilters(null)}
+            />
+          );
         case 'offs':
-          return <AdminFieldOfficers />;
+          return <AdminFieldOfficers showPhotoModal={setPreviewPhoto} />;
         case 'track':
           return <AdminGPSTracking showToast={showToast} />;
         case 'rpt':
@@ -265,7 +280,7 @@ export default function App() {
             />
           );
         case 'mv':
-          return <MyVisits user={currentUser} showPhotoModal={setPreviewPhoto} />;
+          return <MyVisits user={currentUser} showPhotoModal={setPreviewPhoto} showToast={showToast} />;
         case 'att':
           return (
             <OfficerAttendance

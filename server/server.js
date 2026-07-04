@@ -22,7 +22,12 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:')
+    ) {
       return callback(null, true);
     }
     callback(new Error('CORS policy does not allow access from the specified Origin.'));
@@ -38,6 +43,21 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+// Format any date object or string safely to YYYY-MM-DD in local time
+const formatDate = (d) => {
+  if (!d) return '';
+  if (d instanceof Date) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  if (typeof d === 'string') {
+    return d.includes('T') ? d.split('T')[0] : d;
+  }
+  return String(d);
+};
 
 // Map a DB `visits` row back to the camelCase shape the frontend expects
 const rowToVisit = (r) => ({
@@ -64,7 +84,7 @@ const rowToVisit = (r) => ({
   ph: r.ph,
   phf: r.phf,
   ts: r.ts,
-  date: r.date,
+  date: formatDate(r.date),
 });
 
 const rowToUser = (r) => ({
@@ -187,7 +207,7 @@ app.get('/api/visits/today/:offId', async (req, res) => {
     [offId]
   );
 
-  res.json(rows.map(mapVisit));
+  res.json(rows.map(rowToVisit));
 });
 
 app.post('/api/visits', async (req, res) => {
@@ -298,7 +318,7 @@ const rowToAttendance = (a) => ({
   id: Number(a.id),
   offId: a.off_id,
   offName: a.off_name,
-  date: a.date,
+  date: formatDate(a.date),
   status: a.status,
   presentTime: a.present_time,
   remarks: a.remarks,

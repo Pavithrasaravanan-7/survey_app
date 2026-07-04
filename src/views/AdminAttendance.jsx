@@ -15,8 +15,26 @@ const MO = [
 export default function AdminAttendance({ showToast, showPhotoModal }) {
   const [officers, setOfficers] = useState([]);
   
+  const getTodayLocalDate = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getLocalDateString = (tsStr) => {
+    if (!tsStr) return '';
+    const d = new Date(tsStr);
+    if (Number.isNaN(d.getTime())) return '';
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // Day states
-  const [dayDate, setDayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dayDate, setDayDate] = useState(getTodayLocalDate());
   const [dayOfficer, setDayOfficer] = useState('');
   const [dayRecords, setDayRecords] = useState([]);
 
@@ -47,7 +65,11 @@ export default function AdminAttendance({ showToast, showPhotoModal }) {
 
   // Update Day wise records list
   useEffect(() => {
-    let list = attendanceList.filter((a) => a.date === dayDate);
+    let list = attendanceList.filter((a) => {
+      if (!a.date) return false;
+      const dateStr = a.date.includes('T') ? a.date.split('T')[0] : a.date;
+      return dateStr === dayDate;
+    });
     if (dayOfficer) {
       list = list.filter((a) => a.offId === parseInt(dayOfficer));
     }
@@ -57,8 +79,13 @@ export default function AdminAttendance({ showToast, showPhotoModal }) {
   // Update Month wise summary records
   const handleShowMonthSummary = () => {
     const A = attendanceList.filter((a) => {
-      const d = new Date(a.date);
-      return d.getMonth() === parseInt(monthVal) && d.getFullYear() === parseInt(yearVal);
+      if (!a.date) return false;
+      const dateStr = a.date.includes('T') ? a.date.split('T')[0] : a.date;
+      const parts = dateStr.split('-');
+      if (parts.length < 2) return false;
+      const vYr = parseInt(parts[0], 10);
+      const vMo = parseInt(parts[1], 10) - 1;
+      return vYr === parseInt(yearVal) && vMo === parseInt(monthVal);
     });
 
     const summary = officers.map((o) => {
@@ -92,6 +119,7 @@ export default function AdminAttendance({ showToast, showPhotoModal }) {
           <thead>
             <tr>
               <th>#</th>
+              <th>Photo</th>
               <th>Officer</th>
               <th>Status</th>
               <th>Present Time</th>
@@ -103,13 +131,16 @@ export default function AdminAttendance({ showToast, showPhotoModal }) {
             ${dayRecords.map((a, i) => `
               <tr>
                 <td>${i + 1}</td>
+                <td>
+                  ${a.photo ? `<img src="${a.photo}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />` : '—'}
+                </td>
                 <td><strong>${a.offName}</strong></td>
                 <td>${ATLBL[a.status] || a.status}</td>
                 <td>${a.presentTime || '—'}</td>
                 <td>${a.remarks || '—'}</td>
                 <td>${a.lat ? a.lat + ', ' + a.lng : '—'}</td>
               </tr>
-            `).join('') || '<tr><td colspan="6" style="text-align:center;">No records marked for this date</td></tr>'}
+            `).join('') || '<tr><td colspan="7" style="text-align:center;">No records marked for this date</td></tr>'}
           </tbody>
         </table>
       `;

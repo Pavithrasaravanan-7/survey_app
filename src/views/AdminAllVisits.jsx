@@ -15,15 +15,35 @@ const PAYLBL = {
   new_application: { t: '📄 New Application', c: 'da' },
 };
 
-export default function AdminAllVisits({ showPhotoModal }) {
+const getLocalDateString = (tsStr) => {
+  if (!tsStr) return '';
+  const d = new Date(tsStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+export default function AdminAllVisits({ showPhotoModal, initialFilters, clearInitialFilters }) {
   const [visits, setVisits] = useState([]);
   const [officers, setOfficers] = useState([]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState(initialFilters?.payment || '');
+  const [selectedDate, setSelectedDate] = useState(initialFilters?.date || '');
+  const [sortOrder, setSortOrder] = useState('date_desc');
+
+  // Reset filters if redirection payload changes
+  useEffect(() => {
+    if (initialFilters) {
+      setSelectedPayment(initialFilters.payment || '');
+      setSelectedDate(initialFilters.date || '');
+      clearInitialFilters && clearInitialFilters();
+    }
+  }, [initialFilters, clearInitialFilters]);
 
   const loadData = async () => {
     try {
@@ -47,6 +67,7 @@ export default function AdminAllVisits({ showPhotoModal }) {
     setSelectedOfficer('');
     setSelectedPayment('');
     setSelectedDate('');
+    setSortOrder('date_desc');
   };
 
   const getFilteredVisits = () => {
@@ -61,7 +82,7 @@ export default function AdminAllVisits({ showPhotoModal }) {
     }
     
     if (selectedDate) {
-      result = result.filter((v) => v.date === selectedDate);
+      result = result.filter((v) => v.date === selectedDate || (v.ts && getLocalDateString(v.ts) === selectedDate));
     }
     
     if (searchQuery) {
@@ -76,6 +97,17 @@ export default function AdminAllVisits({ showPhotoModal }) {
           v.zn.toLowerCase().includes(q) ||
           (v.asn || '').toLowerCase().includes(q)
       );
+    }
+
+    // Apply sorting
+    if (sortOrder === 'date_desc') {
+      result.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    } else if (sortOrder === 'date_asc') {
+      result.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    } else if (sortOrder === 'off_asc') {
+      result.sort((a, b) => a.offName.localeCompare(b.offName));
+    } else if (sortOrder === 'off_desc') {
+      result.sort((a, b) => b.offName.localeCompare(a.offName));
     }
 
     return result;
@@ -134,6 +166,16 @@ export default function AdminAllVisits({ showPhotoModal }) {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
+              <select
+                className="fsel"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+              >
+                <option value="date_desc">📅 Date (Newest)</option>
+                <option value="date_asc">📅 Date (Oldest)</option>
+                <option value="off_asc">🔤 Officer (A-Z)</option>
+                <option value="off_desc">🔤 Officer (Z-A)</option>
+              </select>
               <button className="btn bo bsm" onClick={handleClearFilters}>
                 ✕ Clear
               </button>
@@ -164,8 +206,8 @@ export default function AdminAllVisits({ showPhotoModal }) {
               </thead>
               <tbody>
                 {filtered.length > 0 ? (
-                  [...filtered].reverse().map((v, index) => {
-                    const rowNum = filtered.length - index;
+                  filtered.map((v, index) => {
+                    const rowNum = index + 1;
                     const payDetails = PAYLBL[v.pay] || PAYLBL.not_paid;
                     const streetAddress = v.dno ? `${v.dno}, ${v.st}` : v.st;
                     const dateStr = new Date(v.ts).toLocaleString('en-IN');

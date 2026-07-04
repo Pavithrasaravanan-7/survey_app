@@ -12,19 +12,32 @@ const PAYLBL = {
   new_application: { t: 'New Application', c: 'da' },
 };
 
+const getLocalDateString = (tsStr) => {
+  if (!tsStr) return '';
+  const d = new Date(tsStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function AdminReports({ showToast }) {
   const [officers, setOfficers] = useState([]);
+  const [activeReportTab, setActiveReportTab] = useState('day');
   
   // Day report inputs
   const [dayDate, setDayDate] = useState(new Date().toISOString().split('T')[0]);
   const [dayOfficer, setDayOfficer] = useState('');
   const [dayCompany, setDayCompany] = useState('');
+  const [daySort, setDaySort] = useState('time');
 
   // Month report inputs
   const [monthVal, setMonthVal] = useState(new Date().getMonth());
   const [yearVal, setYearVal] = useState(new Date().getFullYear());
   const [monthOfficer, setMonthOfficer] = useState('');
   const [monthCompany, setMonthCompany] = useState('');
+  const [monthSort, setMonthSort] = useState('time');
 
   // Summaries inputs
   const [summaryPeriod, setSummaryPeriod] = useState('');
@@ -77,7 +90,7 @@ export default function AdminReports({ showToast }) {
         showToast('Select a date', 'amber');
         return;
       }
-      V = V.filter((v) => v.date === dayDate);
+      V = V.filter((v) => v.date === dayDate || (v.ts && getLocalDateString(v.ts) === dayDate));
       periodStr = dayDate;
       title = 'Day-wise Report';
 
@@ -93,8 +106,13 @@ export default function AdminReports({ showToast }) {
       const mo = parseInt(monthVal);
       const yr = parseInt(yearVal);
       V = V.filter((v) => {
-        const d = new Date(v.date);
-        return d.getMonth() === mo && d.getFullYear() === yr;
+        const dateStr = v.date || (v.ts ? getLocalDateString(v.ts) : '');
+        if (!dateStr) return false;
+        const parts = dateStr.split('-');
+        if (parts.length < 2) return false;
+        const vYr = parseInt(parts[0], 10);
+        const vMo = parseInt(parts[1], 10) - 1;
+        return vYr === yr && vMo === mo;
       });
       periodStr = `${MO[mo]} ${yr}`;
       title = `Month-wise Report — ${periodStr}`;
@@ -107,6 +125,14 @@ export default function AdminReports({ showToast }) {
         const cF = monthCompany.trim().toLowerCase();
         V = V.filter((v) => v.co.toLowerCase().includes(cF));
       }
+    }
+
+    // Sort alphabetically if requested (by Officer name)
+    const sortVal = type === 'day' ? daySort : monthSort;
+    if (sortVal === 'off_asc') {
+      V.sort((a, b) => a.offName.localeCompare(b.offName));
+    } else if (sortVal === 'off_desc') {
+      V.sort((a, b) => b.offName.localeCompare(a.offName));
     }
 
     const paidVisits = V.filter((v) => v.pay === 'paid');
@@ -147,6 +173,7 @@ export default function AdminReports({ showToast }) {
             <thead>
               <tr>
                 <th>#</th>
+                <th>Photo</th>
                 <th>Date</th>
                 <th>Officer</th>
                 <th>Company</th>
@@ -163,6 +190,9 @@ export default function AdminReports({ showToast }) {
               ${V.map((v, idx) => `
                 <tr>
                   <td>${idx + 1}</td>
+                  <td>
+                    ${v.ph ? `<img src="${v.ph}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />` : '—'}
+                  </td>
                   <td>${new Date(v.ts).toLocaleString('en-IN')}</td>
                   <td>${v.offName}</td>
                   <td>${v.co}</td>
@@ -174,11 +204,11 @@ export default function AdminReports({ showToast }) {
                   <td>${payStatusText(v.pay)}</td>
                   <td>${v.pay === 'paid' ? '₹' + v.amt.toLocaleString('en-IN') : '—'}</td>
                 </tr>
-              `).join('') || '<tr><td colspan="11" style="text-align:center;">No records found</td></tr>'}
+              `).join('') || '<tr><td colspan="12" style="text-align:center;">No records found</td></tr>'}
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="10" style="text-align:right;">TOTAL</td>
+                <td colspan="11" style="text-align:right;">TOTAL</td>
                 <td>₹${totalCollected.toLocaleString('en-IN')}</td>
               </tr>
             </tfoot>
@@ -200,8 +230,13 @@ export default function AdminReports({ showToast }) {
     if (!summaryPeriod) return [];
     const [yr, mo] = summaryPeriod.split('-').map(Number);
     const V = visitsList.filter((v) => {
-      const d = new Date(v.date);
-      return d.getFullYear() === yr && d.getMonth() === mo;
+      const dateStr = v.date || (v.ts ? getLocalDateString(v.ts) : '');
+      if (!dateStr) return false;
+      const parts = dateStr.split('-');
+      if (parts.length < 2) return false;
+      const vYr = parseInt(parts[0], 10);
+      const vMo = parseInt(parts[1], 10) - 1;
+      return vYr === yr && vMo === mo;
     });
 
     return officers.map((o) => {
@@ -226,8 +261,13 @@ export default function AdminReports({ showToast }) {
     if (!summaryPeriod) return [];
     const [yr, mo] = summaryPeriod.split('-').map(Number);
     let V = visitsList.filter((v) => {
-      const d = new Date(v.date);
-      return d.getFullYear() === yr && d.getMonth() === mo;
+      const dateStr = v.date || (v.ts ? getLocalDateString(v.ts) : '');
+      if (!dateStr) return false;
+      const parts = dateStr.split('-');
+      if (parts.length < 2) return false;
+      const vYr = parseInt(parts[0], 10);
+      const vMo = parseInt(parts[1], 10) - 1;
+      return vYr === yr && vMo === mo;
     });
 
     if (companySearch) {
@@ -286,6 +326,43 @@ export default function AdminReports({ showToast }) {
     { total: 0, paid: 0, unpaid: 0, amount: 0 }
   );
 
+  const getFilteredVisits = () => {
+    let V = [...visitsList];
+    if (activeReportTab === 'day') {
+      if (!dayDate) return [];
+      V = V.filter((v) => v.date === dayDate || (v.ts && getLocalDateString(v.ts) === dayDate));
+      if (dayOfficer) {
+        V = V.filter((v) => v.offId === parseInt(dayOfficer));
+      }
+      if (dayCompany.trim()) {
+        const cF = dayCompany.trim().toLowerCase();
+        V = V.filter((v) => v.co.toLowerCase().includes(cF));
+      }
+    } else {
+      const mo = parseInt(monthVal);
+      const yr = parseInt(yearVal);
+      V = V.filter((v) => {
+        const dateStr = v.date || (v.ts ? getLocalDateString(v.ts) : '');
+        if (!dateStr) return false;
+        const parts = dateStr.split('-');
+        if (parts.length < 2) return false;
+        const vYr = parseInt(parts[0], 10);
+        const vMo = parseInt(parts[1], 10) - 1;
+        return vYr === yr && vMo === mo;
+      });
+      if (monthOfficer) {
+        V = V.filter((v) => v.offId === parseInt(monthOfficer));
+      }
+      if (monthCompany.trim()) {
+        const cF = monthCompany.trim().toLowerCase();
+        V = V.filter((v) => v.co.toLowerCase().includes(cF));
+      }
+    }
+    return V;
+  };
+
+  const filteredVisits = getFilteredVisits();
+
   return (
     <div className="view on">
       <div className="pb">
@@ -330,6 +407,19 @@ export default function AdminReports({ showToast }) {
                   value={dayCompany}
                   onChange={(e) => setDayCompany(e.target.value)}
                 />
+              </div>
+              <div className="fg mb12">
+                <label>Sort Alphabetically</label>
+                <select
+                  className="fsel"
+                  style={{ width: '100%' }}
+                  value={daySort}
+                  onChange={(e) => setDaySort(e.target.value)}
+                >
+                  <option value="time">📅 Default (By Time)</option>
+                  <option value="off_asc">🔤 Field Officer (A to Z)</option>
+                  <option value="off_desc">🔤 Field Officer (Z to A)</option>
+                </select>
               </div>
               <button className="btn bb bw" onClick={() => handlePrintReport('day')}>
                 🖨️ Print Day Report
@@ -393,6 +483,19 @@ export default function AdminReports({ showToast }) {
                   value={monthCompany}
                   onChange={(e) => setMonthCompany(e.target.value)}
                 />
+              </div>
+              <div className="fg mb12">
+                <label>Sort Alphabetically</label>
+                <select
+                  className="fsel"
+                  style={{ width: '100%' }}
+                  value={monthSort}
+                  onChange={(e) => setMonthSort(e.target.value)}
+                >
+                  <option value="time">📅 Default (By Time)</option>
+                  <option value="off_asc">🔤 Field Officer (A to Z)</option>
+                  <option value="off_desc">🔤 Field Officer (Z to A)</option>
+                </select>
               </div>
               <button className="btn bg bw" onClick={() => handlePrintReport('month')}>
                 🖨️ Print Month Report
@@ -570,6 +673,94 @@ export default function AdminReports({ showToast }) {
               <div className="empty">
                 <div className="ei">🏢</div>
                 <p>No company data for selected period</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* On-screen Report Preview Table */}
+        <div className="card" style={{ marginTop: '20px' }}>
+          <div className="ch" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3>📋 Visited Records Preview</h3>
+              <span className="muted">Detailed report list showing matching entries with date and time</span>
+            </div>
+            <div className="rtabs" style={{ margin: 0, padding: '2px' }}>
+              <button
+                className={`rtab ${activeReportTab === 'day' ? 'on' : ''}`}
+                onClick={() => setActiveReportTab('day')}
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+              >
+                📅 Day Filter
+              </button>
+              <button
+                className={`rtab ${activeReportTab === 'month' ? 'on' : ''}`}
+                onClick={() => setActiveReportTab('month')}
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+              >
+                📆 Month Filter
+              </button>
+            </div>
+          </div>
+          <div className="cb">
+            {filteredVisits.length > 0 ? (
+              <div className="tw">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '10px' }}>#</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Date &amp; Time</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Officer</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Company</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Address</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Ward/Zone</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Payment</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Amount</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>App. Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredVisits.map((v, idx) => (
+                      <tr key={v.id}>
+                        <td style={{ padding: '10px', color: 'var(--mu)', textAlign: 'center' }}>{idx + 1}</td>
+                        <td style={{ padding: '10px', fontWeight: 600 }}>
+                          {v.ts ? new Date(v.ts).toLocaleString('en-IN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          }) : v.date}
+                        </td>
+                        <td style={{ padding: '10px' }}><strong>{v.offName}</strong></td>
+                        <td style={{ padding: '10px' }}>{v.co}</td>
+                        <td style={{ padding: '10px', fontSize: '12px', color: 'var(--mu)' }}>
+                          {v.dno ? v.dno + ', ' : ''}{v.st}
+                        </td>
+                        <td style={{ padding: '10px' }}>{v.wd || '—'} / {v.zn || '—'}</td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <span className={`bdg ${PAYLBL[v.pay]?.c || 'dm'}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
+                            {PAYLBL[v.pay]?.t || 'Unpaid'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: 'var(--gn)' }}>
+                          {v.pay === 'paid' ? `₹${v.amt.toLocaleString('en-IN')}` : '—'}
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <span className={`bdg ${v.appStatus === 'approved' ? 'dg' : v.appStatus === 'rejected' ? 'dr' : 'da'}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
+                            {v.appStatus || 'Pending'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty">
+                <div className="ei">📋</div>
+                <p>No records found matching the active filters</p>
               </div>
             )}
           </div>

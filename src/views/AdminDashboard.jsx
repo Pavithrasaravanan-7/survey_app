@@ -7,7 +7,15 @@ const PAYLBL = {
   new_application: { t: '📄 New Application', c: 'da' },
 };
 
-export default function AdminDashboard({ openConfirmationModal, showToast }) {
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+export default function AdminDashboard({ openConfirmationModal, showToast, onRedirect }) {
   const [stats, setStats] = useState({
     totalVisits: 0,
     todayVisits: 0,
@@ -17,6 +25,9 @@ export default function AdminDashboard({ openConfirmationModal, showToast }) {
     dupAlertsCount: 0,
     companiesCount: 0,
     newAppsCount: 0,
+    todayPresent: 0,
+    todayAbsent: 0,
+    todayOffice: 0,
   });
 
   const [alerts, setAlerts] = useState([]);
@@ -25,20 +36,31 @@ export default function AdminDashboard({ openConfirmationModal, showToast }) {
 
   const loadDashboardData = async () => {
     try {
-      const [V, U, A] = await Promise.all([
+      const [V, U, A, ATT] = await Promise.all([
         DB.visits(),
         DB.users(),
-        DB.alerts()
+        DB.alerts(),
+        DB.attendance()
       ]);
       const offs = U.filter((u) => u.role === 'off');
       
-      const today = new Date().toISOString().split('T')[0];
-      const tv = V.filter((v) => v.date === today);
+      const todayLocal = getTodayLocalDate();
+      const tv = V.filter((v) => v.date === todayLocal || (v.ts && v.ts.includes(todayLocal)));
       const paidVisits = V.filter((v) => v.pay === 'paid');
       
       const tAmt = paidVisits.reduce((sum, v) => sum + v.amt, 0);
       const tdAmt = tv.filter((v) => v.pay === 'paid').reduce((sum, v) => sum + v.amt, 0);
       const uniqueCompanies = new Set(V.map((v) => v.co.trim().toLowerCase())).size;
+
+      const todayAtt = ATT.filter((a) => {
+        if (!a.date) return false;
+        const dateStr = a.date.includes('T') ? a.date.split('T')[0] : a.date;
+        return dateStr === todayLocal;
+      });
+
+      const pres = todayAtt.filter((a) => a.status === 'present').length;
+      const abs = todayAtt.filter((a) => a.status === 'absent').length;
+      const offc = todayAtt.filter((a) => a.status === 'office').length;
 
       setStats({
         totalVisits: V.length,
@@ -49,6 +71,9 @@ export default function AdminDashboard({ openConfirmationModal, showToast }) {
         dupAlertsCount: A.length,
         companiesCount: uniqueCompanies,
         newAppsCount: V.filter((v) => v.isNew).length,
+        todayPresent: pres,
+        todayAbsent: abs,
+        todayOffice: offc,
       });
 
       setAlerts(A);
@@ -110,58 +135,73 @@ export default function AdminDashboard({ openConfirmationModal, showToast }) {
         </div>
         {/* Stats Grid */}
         <div className="sgrid">
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('vis')}>
             <div className="si" style={{ background: 'var(--bll)' }}>📋</div>
             <div className="sv">{stats.totalVisits}</div>
             <div className="sl">Total Visits</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('vis', { date: getTodayLocalDate() })}>
             <div className="si" style={{ background: 'var(--aml)' }}>📅</div>
             <div className="sv">{stats.todayVisits}</div>
             <div className="sl">Today's Visits</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('vis', { payment: 'paid' })}>
             <div className="si" style={{ background: 'var(--gnl)' }}>₹</div>
             <div className="sv" style={{ fontSize: '18px' }}>
               ₹{stats.totalCollected.toLocaleString('en-IN')}
             </div>
             <div className="sl">Total Collected</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('vis', { payment: 'paid', date: getTodayLocalDate() })}>
             <div className="si" style={{ background: 'var(--gnl)' }}>🌅</div>
             <div className="sv" style={{ fontSize: '18px' }}>
               ₹{stats.todayCollected.toLocaleString('en-IN')}
             </div>
             <div className="sl">Today's Collection</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('offs')}>
             <div className="si" style={{ background: 'var(--bll)' }}>👥</div>
             <div className="sv">{stats.officersCount}</div>
             <div className="sl">Field Officers</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => { document.getElementById('alerts-section')?.scrollIntoView({ behavior: 'smooth' }); }}>
             <div className="si" style={{ background: stats.dupAlertsCount ? 'var(--rdl)' : 'var(--gnl)' }}>
               {stats.dupAlertsCount ? '⚠️' : '✅'}
             </div>
             <div className="sv">{stats.dupAlertsCount}</div>
             <div className="sl">Dup. Alerts</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('rpt')}>
             <div className="si" style={{ background: 'var(--bll)' }}>🏢</div>
             <div className="sv">{stats.companiesCount}</div>
             <div className="sl">Companies</div>
           </div>
-          <div className="sc">
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('vis', { payment: 'new_application' })}>
             <div className="si" style={{ background: 'var(--bll)' }}>📄</div>
             <div className="sv">{stats.newAppsCount}</div>
             <div className="sl">New Applications</div>
+          </div>
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('att')}>
+            <div className="si" style={{ background: 'var(--gnl)' }}>✅</div>
+            <div className="sv">{stats.todayPresent}</div>
+            <div className="sl">Today Present</div>
+          </div>
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('att')}>
+            <div className="si" style={{ background: 'var(--rdl)' }}>❌</div>
+            <div className="sv">{stats.todayAbsent}</div>
+            <div className="sl">Today Absent</div>
+          </div>
+          <div className="sc" style={{ cursor: 'pointer' }} onClick={() => onRedirect && onRedirect('att')}>
+            <div className="si" style={{ background: 'var(--aml)' }}>🏢</div>
+            <div className="sv">{stats.todayOffice}</div>
+            <div className="sl">Today Office</div>
           </div>
         </div>
 
         {/* Alerts and Recent */}
         <div className="col2">
           {/* Alerts card */}
-          <div className="card">
+          <div className="card" id="alerts-section">
             <div className="ch">
               <h3>⚠️ Duplicate Alerts</h3>
               {alerts.length > 0 && (

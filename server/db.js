@@ -14,6 +14,10 @@ if (!process.env.DATABASE_URL && fs.existsSync(envPath)) {
 
 const { Pool } = pg;
 
+// Parse pg DATE (type 1082) as a raw string rather than a local Date object.
+// This prevents timezone shifts when translating DATE columns to/from the frontend.
+pg.types.setTypeParser(1082, (val) => val);
+
 if (!process.env.DATABASE_URL) {
   throw new Error(
     'DATABASE_URL is not set. On Render, attach a managed Postgres database and ' +

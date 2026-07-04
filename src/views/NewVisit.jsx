@@ -24,6 +24,12 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
   const [assessmentNo, setAssessmentNo] = useState('');
   const [company, setCompany] = useState('');
   const [contact, setContact] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [email, setEmail] = useState('');
+  const [gstNumber, setGstNumber] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [submittedData, setSubmittedData] = useState(null);
   const [doorNo, setDoorNo] = useState('');
   const [street, setStreet] = useState('');
   const [ward, setWard] = useState('');
@@ -50,6 +56,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
   const [cameraLoading, setCameraLoading] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState(null); // base64 data URL
   const [photoMeta, setPhotoMeta] = useState(null); // size and name
+  const [cameraMode, setCameraMode] = useState('environment'); // 'user' or 'environment'
   const [dateTimeStr] = useState(new Date().toLocaleString('en-IN'));
 
   // Backend visits list state
@@ -145,7 +152,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       setAsmResult({
         show: true,
         found: false,
-        text: `⚠️ New Assessment — Not in database. Mark as "New Application" to register.`,
+        text: `⚠️ New Assessment — Not in database.`,
       });
       setIsNewApp(false);
       // Clear fields to let user enter new property
@@ -247,7 +254,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
   }, [cameraActive]);
 
   // Camera Functions
-  const startCamera = async () => {
+  const startCamera = async (preferredMode = cameraMode) => {
     setCameraReady(false);
     setCameraLoading(true);
 
@@ -275,8 +282,8 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       }
 
       const constraintsList = [
-        { video: { facingMode: { ideal: 'environment' } }, audio: false },
-        { video: { facingMode: { ideal: 'user' } }, audio: false },
+        { video: { facingMode: { ideal: preferredMode } }, audio: false },
+        { video: { facingMode: { ideal: preferredMode === 'environment' ? 'user' : 'environment' } }, audio: false },
         { video: true, audio: false },
       ];
 
@@ -321,6 +328,15 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     setCameraActive(false);
     setCameraReady(false);
     setCameraLoading(false);
+  };
+
+  const toggleCameraMode = () => {
+    const nextMode = cameraMode === 'environment' ? 'user' : 'environment';
+    setCameraMode(nextMode);
+    stopCamera();
+    setTimeout(() => {
+      startCamera(nextMode);
+    }, 150);
   };
 
   const capturePhoto = async () => {
@@ -462,7 +478,12 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     const dups = [];
     visitsList.forEach((v) => {
       const reasons = [];
-      if (v.co.toLowerCase() === coName.toLowerCase() && v.asn && asmNum && v.asn === asmNum) {
+      const cleanVAsn = (v.asn || '').trim().toLowerCase();
+      const cleanAsmNum = (asmNum || '').trim().toLowerCase();
+      
+      if (cleanAsmNum && cleanVAsn && cleanVAsn === cleanAsmNum) {
+        reasons.push(`Duplicate assessment number (${asmNum})`);
+      } else if (v.co.toLowerCase() === coName.toLowerCase() && cleanVAsn && cleanAsmNum && cleanVAsn === cleanAsmNum) {
         reasons.push('Same company + assessment number');
       }
       if (photoSize && v.phf && v.phf.size === photoSize && v.phf.name === photoName) {
@@ -550,8 +571,11 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
         gst: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasGST : false,
         pan: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasPAN : false,
         rentalNeed: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? rentalNeed : false,
-        staffCount: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? (staffCount ? parseInt(staffCount, 10) : 0) : 0,
+        staffCount: staffCount ? parseInt(staffCount, 10) : 0,
         periodFrom: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? periodFrom : '',
+        contactPerson: contactPerson.trim(),
+        email: email.trim(),
+        gstNumber: gstNumber.trim(),
       },
       remarks: regStatus === 'register' ? remarks : remarks,
       desc: description,
@@ -566,8 +590,33 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     DB.saveVisit(visitData)
       .then(() => {
         showToast('Visit submitted successfully! ✅', 'green');
-        resetForm();
-        loadVisits();
+        
+        // Generate formatted text for WhatsApp share
+        const formattedWhatsAppText = `ZONE : ${visitData.zn.toUpperCase()}
+
+WARD : ${visitData.wd}
+
+COMPANY NAME : ${visitData.co.toUpperCase()}
+
+CONTACT PERSON : ${visitData.docs.contactPerson.toUpperCase()}
+
+MOBILE NUMBER : ${visitData.contact}
+
+E-mail 📩 : ${visitData.docs.email}
+
+PROFESSIONAL TAX ASSESSMENT NUMBER : ${visitData.asn}
+
+GST NUMBER : ${visitData.docs.gstNumber}
+
+STAFF COUNT : ${visitData.docs.staffCount ? String(visitData.docs.staffCount).padStart(2, '0') : ''}
+
+REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW APPLICATION' : visitData.pay)).toUpperCase()}`;
+
+        setSubmittedData({
+          text: formattedWhatsAppText,
+        });
+        setIsSubmitted(true);
+        setIsCopied(false);
       })
       .catch((err) => {
         showToast('Failed to save visit: ' + err.message, 'red');
@@ -578,6 +627,9 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     setAssessmentNo('');
     setCompany('');
     setContact('');
+    setContactPerson('');
+    setEmail('');
+    setGstNumber('');
     setDoorNo('');
     setStreet('');
     setWard('');
@@ -600,6 +652,90 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     setCameraReady(false);
     stopCamera();
   };
+
+  if (isSubmitted && submittedData) {
+    return (
+      <div className="view on">
+        <div className="pb" style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <div className="card text-center" style={{ padding: '24px', textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+            <h2 style={{ marginBottom: '8px' }}>Visit Saved Successfully!</h2>
+            <p className="muted" style={{ marginBottom: '24px' }}>
+              Your visit details have been recorded. You can now copy the formatted details and send them to WhatsApp.
+            </p>
+
+            {/* Formatted Text Preview box */}
+            <div style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--br)',
+              borderRadius: '8px',
+              padding: '16px',
+              textAlign: 'left',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              whiteSpace: 'pre-wrap',
+              marginBottom: '20px',
+              color: 'var(--fg)',
+              maxHeight: '260px',
+              overflowY: 'auto'
+            }}>
+              {submittedData.text}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn bb"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: isCopied ? '#25d366' : 'var(--bb)',
+                  borderColor: isCopied ? '#25d366' : 'var(--bb)',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  navigator.clipboard.writeText(submittedData.text)
+                    .then(() => {
+                      setIsCopied(true);
+                      showToast('Copied to Clipboard! 📋', 'green');
+                      // Open WhatsApp group invite link in new tab
+                      setTimeout(() => {
+                        window.open('https://chat.whatsapp.com/Bu7mRiit9qt6ZMLqzbjGxu?s=cl&p=a&ilr=0', '_blank');
+                      }, 400);
+                    })
+                    .catch((err) => {
+                      showToast('Failed to copy: ' + err.message, 'red');
+                    });
+                }}
+              >
+                {isCopied ? '✅ Copied!' : '📋 Copy & Send to WhatsApp'}
+              </button>
+
+              <button
+                type="button"
+                className="btn bo"
+                style={{ width: '100%', padding: '12px', fontSize: '16px', cursor: 'pointer' }}
+                onClick={() => {
+                  setIsSubmitted(false);
+                  setSubmittedData(null);
+                  resetForm();
+                  loadVisits();
+                }}
+              >
+                ➕ Record Another Visit
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="view on">
@@ -644,21 +780,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
                     <span dangerouslySetInnerHTML={{ __html: asmResult.text }} />
                   </div>
                 )}
-                {asmResult.show && !asmResult.found && (
-                  <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {!isNewApp ? (
-                      <button
-                        type="button"
-                        className="btn ba bsm"
-                        onClick={markNewApplication}
-                      >
-                        📄 New Application
-                      </button>
-                    ) : (
-                      <span className="bdg db">📄 New Application</span>
-                    )}
-                  </div>
-                )}
+
               </div>
               <div className="g2">
                 <div className="fg">
@@ -672,7 +794,17 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
                   />
                 </div>
                 <div className="fg">
-                  <label>Contact No. <span class="r">*</span></label>
+                  <label>Contact Person <span className="r">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="Contact person name"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="fg">
+                  <label>Contact / Mobile No. <span class="r">*</span></label>
                   <input
                     type="tel"
                     placeholder="10-digit mobile number"
@@ -681,6 +813,15 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
                     value={contact}
                     onChange={(e) => setContact(e.target.value)}
                     required
+                  />
+                </div>
+                <div className="fg">
+                  <label>E-mail</label>
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div className="fg">
@@ -725,6 +866,26 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
                       <option key={z} value={z}>{z}</option>
                     ))}
                   </select>
+                </div>
+                <div className="fg">
+                  <label>GST Number</label>
+                  <input
+                    type="text"
+                    placeholder="15-digit GSTIN"
+                    maxLength={15}
+                    value={gstNumber}
+                    onChange={(e) => setGstNumber(e.target.value)}
+                  />
+                </div>
+                <div className="fg">
+                  <label>Staff Count</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 5"
+                    value={staffCount}
+                    onChange={(e) => setStaffCount(e.target.value)}
+                  />
                 </div>
               </div>
             </div>
@@ -871,18 +1032,6 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
 
                           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                             <div className="fg" style={{ margin: 0 }}>
-                              <label style={{ display: 'block' }}>Staff Count</label>
-                              <input
-                                type="number"
-                                min="0"
-                                placeholder="e.g. 5"
-                                value={staffCount}
-                                onChange={(e) => setStaffCount(e.target.value)}
-                                style={{ width: '140px' }}
-                              />
-                            </div>
-
-                            <div className="fg" style={{ margin: 0 }}>
                               <label style={{ display: 'block' }}>Period From</label>
                               <input
                                 type="date"
@@ -989,7 +1138,25 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
             <div className="cb">
               {!cameraActive && !cameraLoading && !capturedPhoto && (
                 <>
-                  <div className="pha" onClick={startCamera}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <button
+                      type="button"
+                      className={`btn bsm ${cameraMode === 'environment' ? 'bb' : 'bo'}`}
+                      style={{ padding: '6px 12px', fontSize: '12.5px' }}
+                      onClick={() => setCameraMode('environment')}
+                    >
+                      📷 Back Camera
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn bsm ${cameraMode === 'user' ? 'bb' : 'bo'}`}
+                      style={{ padding: '6px 12px', fontSize: '12.5px' }}
+                      onClick={() => setCameraMode('user')}
+                    >
+                      🤳 Front/Selfie Camera
+                    </button>
+                  </div>
+                  <div className="pha" onClick={() => startCamera()}>
                     <div>
                       <div style={{ fontSize: '42px' }}>📷</div>
                       <p className="fw6 mt8">Tap to Open Camera</p>
@@ -1039,6 +1206,9 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
                     <button type="button" className="btn bo bsm" onClick={stopCamera}>
                       ✕ Cancel
                     </button>
+                    <button type="button" className="btn bo bsm" onClick={toggleCameraMode}>
+                      🔄 Switch Camera
+                    </button>
                     <button type="button" className="btn bb blg" onClick={capturePhoto} disabled={!cameraReady}>
                       📸 Capture Photo
                     </button>
@@ -1074,7 +1244,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
+                capture={cameraMode}
                 id="native-camera-fallback"
                 style={{ display: 'none' }}
                 onChange={handleNativeCameraCapture}
