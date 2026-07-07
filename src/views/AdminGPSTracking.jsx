@@ -469,6 +469,8 @@ export default function AdminGPSTracking({ showToast }) {
       
       const trackData = TR[selectedOfficer];
       const rawPts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      console.log("trackData:", trackData);
+      console.log("rawPts:", rawPts);
       const sortedPts = [...rawPts].sort((a, b) => new Date(a.ts) - new Date(b.ts));
 
       const enrichedPts = sortedPts.map((p, index) => {
