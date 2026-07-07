@@ -83,6 +83,9 @@ const rowToVisit = (r) => ({
   lng: r.lng,
   ph: r.ph,
   phf: r.phf,
+  payMode: r.pay_mode || '',
+  receiptCollected: r.receipt_collected || '',
+  receiptPhoto: r.receipt_photo || '',
   ts: r.ts,
   date: formatDate(r.date),
 });
@@ -223,14 +226,14 @@ app.post('/api/visits', async (req, res) => {
   const { rows } = await query(
     `INSERT INTO visits
        (id, off_id, off_name, co, asn, dno, st, reg, contact, docs, description,
-        wd, zn, is_new, pay, amt, app_status, app_remarks, lat, lng, ph, phf, ts, date)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+        wd, zn, is_new, pay, amt, app_status, app_remarks, lat, lng, ph, phf, ts, date, pay_mode, receipt_collected, receipt_photo)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
      RETURNING *`,
     [
       id, v.offId, v.offName, v.co, v.asn || '', v.dno || '', v.st || '', v.reg || '',
       v.contact || '', JSON.stringify(v.docs || {}), v.desc || '', v.wd || '', v.zn || '',
       !!v.isNew, v.pay || '', v.amt || 0, v.appStatus || '', v.appRemarks || '',
-      v.lat, v.lng, v.ph, v.phf, ts, date,
+      v.lat, v.lng, v.ph, v.phf, ts, date, v.payMode || '', v.receiptCollected || '', v.receiptPhoto || '',
     ]
   );
   res.status(201).json(rowToVisit(rows[0]));
@@ -239,6 +242,49 @@ app.post('/api/visits', async (req, res) => {
 app.delete('/api/visits', async (req, res) => {
   await query(`DELETE FROM visits`);
   res.json({ message: 'All visits cleared' });
+});
+
+app.get('/api/visits/:id/photo/:type', async (req, res) => {
+  try {
+    const { id, type } = req.params;
+    const result = await query('SELECT ph, receipt_photo, docs FROM visits WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).send('Visit not found');
+    }
+    const row = result.rows[0];
+    let base64 = '';
+    if (type === 'visit') {
+      base64 = row.ph;
+    } else if (type === 'receipt') {
+      base64 = row.receipt_photo || row.docs?.receiptPhoto;
+    } else if (type === 'gst') {
+      base64 = row.docs?.gstPhoto;
+    } else if (type === 'pan') {
+      base64 = row.docs?.panPhoto;
+    } else if (type === 'rental') {
+      base64 = row.docs?.rentalPhoto;
+    }
+
+    if (!base64) {
+      return res.status(404).send('Photo not found');
+    }
+
+    if (base64.startsWith('data:image')) {
+      const parts = base64.split(',');
+      const mime = parts[0].match(/:(.*?);/)[1];
+      const imgBuffer = Buffer.from(parts[1], 'base64');
+      res.writeHead(200, {
+        'Content-Type': mime,
+        'Content-Length': imgBuffer.length
+      });
+      res.end(imgBuffer);
+    } else {
+      res.status(400).send('Invalid image format');
+    }
+  } catch (err) {
+    console.error('Failed to serve photo:', err);
+    res.status(500).send('Server error');
+  }
 });
 
 // ═════════════════════ TRACK API (GPS Waypoints) ═════════════════════

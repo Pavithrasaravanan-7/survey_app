@@ -18,6 +18,34 @@ const ASLBL = {
   others: '📌 Others',
 };
 
+const copyImageToClipboard = async (base64String, showToast) => {
+  try {
+    // Draw onto canvas to convert to PNG (ClipboardItem universally requires image/png in browsers)
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(async (pngBlob) => {
+        try {
+          const item = new ClipboardItem({ 'image/png': pngBlob });
+          await navigator.clipboard.write([item]);
+          showToast('📋 Image copied to clipboard! You can now paste (Ctrl+V) directly into WhatsApp.', 'green');
+        } catch (err) {
+          console.error('Failed to copy to clipboard:', err);
+          showToast('Failed to copy image: ' + err.message, 'red');
+        }
+      }, 'image/png');
+    };
+    img.src = base64String;
+  } catch (err) {
+    console.error('Failed to prepare clipboard image:', err);
+    showToast('Failed to copy image: ' + err.message, 'red');
+  }
+};
+
 const ZONES = ['North Zone', 'South Zone', 'East Zone', 'West Zone', 'Central Zone'];
 
 export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToast, openConfirmationModal }) {
@@ -37,10 +65,17 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
   const [regStatus, setRegStatus] = useState(''); // 'register' or 'unregister'
   const [payStatus, setPayStatus] = useState(''); // 'paid', 'not_paid', 'new_application'
   const [amount, setAmount] = useState('');
+  const [payMode, setPayMode] = useState(''); // 'cheque', 'online_payment', 'cash'
+  const [receiptCollected, setReceiptCollected] = useState(''); // 'yes', 'no'
+  const [receiptPhoto, setReceiptPhoto] = useState(null); // base64
+  const [receiptPhotoMeta, setReceiptPhotoMeta] = useState(null);
   const [appStatus, setAppStatus] = useState(''); // 'doc_collection', 'approval', etc.
   const [hasGST, setHasGST] = useState(false);
+  const [gstPhoto, setGstPhoto] = useState(null); // base64
   const [hasPAN, setHasPAN] = useState(false);
+  const [panPhoto, setPanPhoto] = useState(null); // base64
   const [rentalNeed, setRentalNeed] = useState(false);
+  const [rentalPhoto, setRentalPhoto] = useState(null); // base64
   const [staffCount, setStaffCount] = useState('');
   const [periodFrom, setPeriodFrom] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -467,6 +502,130 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     reader.readAsDataURL(file);
   };
 
+  const handleReceiptPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        
+        // Scale down to max 1280px to save storage/bandwidth
+        const maxDimension = 1280;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Burn GPS coordinates + timestamp on receipt image
+        const stamp1 = lat && lng ? `📍 Lat: ${lat}, Long: ${lng}` : '📍 GPS not available';
+        const stamp2 = `🕐 ${new Date().toLocaleString('en-IN')} (Receipt)`;
+        const fontSize = Math.max(16, Math.round(canvas.width * 0.028));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        
+        const padX = fontSize * 0.7;
+        const padY = fontSize * 0.6;
+        const lineHeight = fontSize * 1.35;
+        const barHeight = lineHeight * 2 + padY * 2;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(0, canvas.height - barHeight, canvas.width, barHeight);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'top';
+        ctx.fillText(stamp1, padX, canvas.height - barHeight + padY);
+        ctx.fillText(stamp2, padX, canvas.height - barHeight + padY + lineHeight);
+
+        const base64Data = canvas.toDataURL('image/jpeg', 0.85);
+        setReceiptPhoto(base64Data);
+        setReceiptPhotoMeta({
+          name: file.name || `receipt_${Date.now()}.jpg`,
+          size: Math.round(base64Data.length * 0.75),
+        });
+        showToast('Receipt photo uploaded and GPS-tagged!', 'green');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDocPhotoUpload = (e, docType) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        
+        // Scale down to max 1280px to save storage/bandwidth
+        const maxDimension = 1280;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Burn GPS coordinates + timestamp on document image
+        const stamp1 = lat && lng ? `📍 Lat: ${lat}, Long: ${lng}` : '📍 GPS not available';
+        const stamp2 = `🕐 ${new Date().toLocaleString('en-IN')} (${docType.toUpperCase()})`;
+        const fontSize = Math.max(16, Math.round(canvas.width * 0.028));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        
+        const padX = fontSize * 0.7;
+        const padY = fontSize * 0.6;
+        const lineHeight = fontSize * 1.35;
+        const barHeight = lineHeight * 2 + padY * 2;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(0, canvas.height - barHeight, canvas.width, barHeight);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'top';
+        ctx.fillText(stamp1, padX, canvas.height - barHeight + padY);
+        ctx.fillText(stamp2, padX, canvas.height - barHeight + padY + lineHeight);
+
+        const base64Data = canvas.toDataURL('image/jpeg', 0.85);
+        if (docType === 'gst') {
+          setGstPhoto(base64Data);
+        } else if (docType === 'pan') {
+          setPanPhoto(base64Data);
+        } else if (docType === 'rental') {
+          setRentalPhoto(base64Data);
+        }
+        showToast(`${docType.toUpperCase()} photo uploaded and GPS-tagged!`, 'green');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const retakePhoto = () => {
     setCapturedPhoto(null);
     setPhotoMeta(null);
@@ -511,9 +670,39 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
         showToast('Select a Payment Status', 'amber');
         return;
       }
-      if (payStatus === 'new_application' && !appStatus) {
-        showToast('Select an Application Status', 'amber');
-        return;
+      if (payStatus === 'paid') {
+        if (!payMode) {
+          showToast('Select a Payment Mode', 'amber');
+          return;
+        }
+        if (!receiptCollected) {
+          showToast('Select Receipt Collection Status', 'amber');
+          return;
+        }
+        if (receiptCollected === 'yes' && !receiptPhoto) {
+          showToast('Please capture or upload the Receipt Photo', 'amber');
+          return;
+        }
+      }
+      if (payStatus === 'new_application') {
+        if (!appStatus) {
+          showToast('Select an Application Status', 'amber');
+          return;
+        }
+        if (appStatus === 'doc_collection') {
+          if (hasGST && !gstPhoto) {
+            showToast('Please capture or upload the GST document photo', 'amber');
+            return;
+          }
+          if (hasPAN && !panPhoto) {
+            showToast('Please capture or upload the PAN document photo', 'amber');
+            return;
+          }
+          if (rentalNeed && !rentalPhoto) {
+            showToast('Please capture or upload the Rental Deed document photo', 'amber');
+            return;
+          }
+        }
       }
     }
 
@@ -565,17 +754,26 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       reg: regStatus,
       pay: regStatus === 'register' ? payStatus : '',
       amt: regStatus === 'register' && payStatus === 'paid' ? (parseFloat(amount) || 0) : 0,
+      payMode: regStatus === 'register' && payStatus === 'paid' ? payMode : '',
+      receiptCollected: regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '',
+      receiptPhoto: regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '',
       appStatus: regStatus === 'register' && payStatus === 'new_application' ? appStatus : '',
       appRemarks: regStatus === 'register' && payStatus === 'new_application' ? remarks : '',
       docs: {
         gst: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasGST : false,
         pan: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasPAN : false,
         rentalNeed: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? rentalNeed : false,
+        gstPhoto: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && hasGST ? gstPhoto : '',
+        panPhoto: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && hasPAN ? panPhoto : '',
+        rentalPhoto: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && rentalNeed ? rentalPhoto : '',
         staffCount: staffCount ? parseInt(staffCount, 10) : 0,
         periodFrom: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? periodFrom : '',
         contactPerson: contactPerson.trim(),
         email: email.trim(),
         gstNumber: gstNumber.trim(),
+        payMode: regStatus === 'register' && payStatus === 'paid' ? payMode : '',
+        receiptCollected: regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '',
+        receiptPhoto: regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '',
       },
       remarks: regStatus === 'register' ? remarks : remarks,
       desc: description,
@@ -591,7 +789,13 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       .then(() => {
         showToast('Visit submitted successfully! ✅', 'green');
         
-        // Generate formatted text for WhatsApp share
+        let remarksStr = visitData.remarks || (visitData.pay === 'new_application' ? 'NEW APPLICATION' : visitData.pay);
+        if (visitData.pay === 'paid') {
+          const modeLbl = visitData.payMode === 'online_payment' ? 'ONLINE PAYMENT' : visitData.payMode.toUpperCase();
+          const receiptLbl = visitData.receiptCollected === 'yes' ? 'COLLECTED' : 'NOT COLLECTED';
+          remarksStr = `PAID (₹${visitData.amt}) | MODE: ${modeLbl} | RECEIPT: ${receiptLbl}${visitData.remarks ? ' | ' + visitData.remarks : ''}`;
+        }
+
         const formattedWhatsAppText = `ZONE : ${visitData.zn.toUpperCase()}
 
 WARD : ${visitData.wd}
@@ -610,10 +814,34 @@ GST NUMBER : ${visitData.docs.gstNumber}
 
 STAFF COUNT : ${visitData.docs.staffCount ? String(visitData.docs.staffCount).padStart(2, '0') : ''}
 
-REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW APPLICATION' : visitData.pay)).toUpperCase()}`;
+REMARKS : ${remarksStr.toUpperCase()}`;
+
+        const origin = window.location.origin;
+        const photoLinks = [];
+        if (visitData.ph) {
+          photoLinks.push(`VISIT PHOTO 📸 : ${origin}/api/visits/${visitData.id}/photo/visit`);
+        }
+        if (visitData.receiptPhoto) {
+          photoLinks.push(`RECEIPT PHOTO 🧾 : ${origin}/api/visits/${visitData.id}/photo/receipt`);
+        }
+        if (visitData.docs?.gstPhoto) {
+          photoLinks.push(`GST PHOTO 🧾 : ${origin}/api/visits/${visitData.id}/photo/gst`);
+        }
+        if (visitData.docs?.panPhoto) {
+          photoLinks.push(`PAN PHOTO 🪪 : ${origin}/api/visits/${visitData.id}/photo/pan`);
+        }
+        if (visitData.docs?.rentalPhoto) {
+          photoLinks.push(`RENTAL PHOTO 🏘️ : ${origin}/api/visits/${visitData.id}/photo/rental`);
+        }
+
+        let fullWhatsAppText = formattedWhatsAppText;
+        if (photoLinks.length > 0) {
+          fullWhatsAppText += `\n\nPHOTOS 📷:\n${photoLinks.join('\n')}`;
+        }
 
         setSubmittedData({
-          text: formattedWhatsAppText,
+          text: fullWhatsAppText,
+          visit: visitData,
         });
         setIsSubmitted(true);
         setIsCopied(false);
@@ -636,10 +864,18 @@ REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW AP
     setZone('');
     setRegStatus('');
     setPayStatus('');
+    setPayMode('');
+    setReceiptCollected('');
+    setReceiptPhoto(null);
+    setReceiptPhotoMeta(null);
     setAmount('');
     setAppStatus('');
     setHasGST(false);
+    setGstPhoto(null);
     setHasPAN(false);
+    setPanPhoto(null);
+    setRentalNeed(false);
+    setRentalPhoto(null);
     setRentalNeed(false);
     setStaffCount('');
     setPeriodFrom('');
@@ -717,6 +953,60 @@ REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW AP
                 {isCopied ? '✅ Copied!' : '📋 Copy & Send to WhatsApp'}
               </button>
 
+              {/* Photos list for copying */}
+              {(submittedData.visit?.ph || submittedData.visit?.receiptPhoto || submittedData.visit?.docs?.gstPhoto || submittedData.visit?.docs?.panPhoto || submittedData.visit?.docs?.rentalPhoto) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px', textAlign: 'left' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--mu)', textTransform: 'uppercase' }}>Visit Photos (Click Copy to Paste in WhatsApp):</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {submittedData.visit?.ph && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: '1px solid var(--br)', borderRadius: '8px', background: 'var(--bg-card)' }}>
+                        <img src={submittedData.visit.ph} alt="Visit" style={{ width: '38px', height: '38px', objectFit: 'cover', borderRadius: '4px' }} />
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: 600 }}>📸 Visit Photo</span>
+                        <button type="button" className="btn bo bsm" style={{ fontSize: '10.5px', padding: '3px 6px', minWidth: 'auto' }} onClick={() => copyImageToClipboard(submittedData.visit.ph, showToast)}>
+                          📋 Copy
+                        </button>
+                      </div>
+                    )}
+                    {submittedData.visit?.receiptPhoto && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: '1px solid var(--br)', borderRadius: '8px', background: 'var(--bg-card)' }}>
+                        <img src={submittedData.visit.receiptPhoto} alt="Receipt" style={{ width: '38px', height: '38px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--gn)' }} />
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: 600 }}>🧾 Receipt Photo</span>
+                        <button type="button" className="btn bo bsm" style={{ fontSize: '10.5px', padding: '3px 6px', minWidth: 'auto' }} onClick={() => copyImageToClipboard(submittedData.visit.receiptPhoto, showToast)}>
+                          📋 Copy
+                        </button>
+                      </div>
+                    )}
+                    {submittedData.visit?.docs?.gstPhoto && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: '1px solid var(--br)', borderRadius: '8px', background: 'var(--bg-card)' }}>
+                        <img src={submittedData.visit.docs.gstPhoto} alt="GST" style={{ width: '38px', height: '38px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--bl)' }} />
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: 600 }}>🧾 GST Document</span>
+                        <button type="button" className="btn bo bsm" style={{ fontSize: '10.5px', padding: '3px 6px', minWidth: 'auto' }} onClick={() => copyImageToClipboard(submittedData.visit.docs.gstPhoto, showToast)}>
+                          📋 Copy
+                        </button>
+                      </div>
+                    )}
+                    {submittedData.visit?.docs?.panPhoto && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: '1px solid var(--br)', borderRadius: '8px', background: 'var(--bg-card)' }}>
+                        <img src={submittedData.visit.docs.panPhoto} alt="PAN" style={{ width: '38px', height: '38px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--bl)' }} />
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: 600 }}>🪪 PAN Document</span>
+                        <button type="button" className="btn bo bsm" style={{ fontSize: '10.5px', padding: '3px 6px', minWidth: 'auto' }} onClick={() => copyImageToClipboard(submittedData.visit.docs.panPhoto, showToast)}>
+                          📋 Copy
+                        </button>
+                      </div>
+                    )}
+                    {submittedData.visit?.docs?.rentalPhoto && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: '1px solid var(--br)', borderRadius: '8px', background: 'var(--bg-card)' }}>
+                        <img src={submittedData.visit.docs.rentalPhoto} alt="Rental" style={{ width: '38px', height: '38px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--bl)' }} />
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: 600 }}>🏘️ Rental Deed</span>
+                        <button type="button" className="btn bo bsm" style={{ fontSize: '10.5px', padding: '3px 6px', minWidth: 'auto' }} onClick={() => copyImageToClipboard(submittedData.visit.docs.rentalPhoto, showToast)}>
+                          📋 Copy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+ 
               <button
                 type="button"
                 className="btn bo"
@@ -940,11 +1230,21 @@ REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW AP
                         onChange={(e) => {
                           const val = e.target.value;
                           setPayStatus(val);
-                          if (val !== 'paid') setAmount('');
+                          if (val !== 'paid') {
+                            setAmount('');
+                            setPayMode('');
+                            setReceiptCollected('');
+                            setReceiptPhoto(null);
+                            setReceiptPhotoMeta(null);
+                          }
                           if (val !== 'new_application') {
                             setAppStatus('');
                             setHasGST(false);
+                            setGstPhoto(null);
                             setHasPAN(false);
+                            setPanPhoto(null);
+                            setRentalNeed(false);
+                            setRentalPhoto(null);
                           }
                         }}
                         required
@@ -956,18 +1256,123 @@ REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW AP
                       </select>
                     </div>
                     {payStatus === 'paid' && (
-                      <div className="fg">
-                        <label>Amount Paid (₹) <span className="r">*</span></label>
-                        <input
-                          type="number"
-                          placeholder="Enter amount"
-                          min="0"
-                          step="0.01"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          required
-                        />
-                      </div>
+                      <>
+                        <div className="fg">
+                          <label>Amount Paid (₹) <span className="r">*</span></label>
+                          <input
+                            type="number"
+                            placeholder="Enter amount"
+                            min="0"
+                            step="0.01"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="fg">
+                          <label>Payment Mode <span className="r">*</span></label>
+                          <select
+                            value={payMode}
+                            onChange={(e) => setPayMode(e.target.value)}
+                            required
+                          >
+                            <option value="">Select Mode</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="online_payment">Online Payment</option>
+                            <option value="cash">Cash</option>
+                          </select>
+                        </div>
+                        <div className="fg">
+                          <label>Receipt Collected <span className="r">*</span></label>
+                          <select
+                            value={receiptCollected}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setReceiptCollected(val);
+                              if (val !== 'yes') {
+                                setReceiptPhoto(null);
+                                setReceiptPhotoMeta(null);
+                              }
+                            }}
+                            required
+                          >
+                            <option value="">Select Status</option>
+                            <option value="yes">Collected</option>
+                            <option value="no">Not Collected</option>
+                          </select>
+                        </div>
+                        {receiptCollected === 'yes' && (
+                          <div className="fg" style={{ marginTop: '10px' }}>
+                            <label>Receipt Photo <span className="r">*</span></label>
+                            
+                            {!receiptPhoto ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  className="btn bo bsm"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    padding: '10px',
+                                    width: '100%',
+                                    border: '1.5px dashed var(--br)',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer'
+                                  }}
+                                  onClick={() => document.getElementById('receipt-photo-input').click()}
+                                >
+                                  📷 Capture / Upload Receipt Photo
+                                </button>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  id="receipt-photo-input"
+                                  style={{ display: 'none' }}
+                                  onChange={handleReceiptPhotoUpload}
+                                />
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center', border: '1px solid var(--br)', borderRadius: '8px', padding: '10px', background: 'var(--bg-card)' }}>
+                                <img
+                                  src={receiptPhoto}
+                                  alt="Receipt Preview"
+                                  style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '6px', display: 'block', margin: '0 auto', boxShadow: 'var(--shadow-sm)' }}
+                                />
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px' }}>
+                                  <button
+                                    type="button"
+                                    className="btn bo bsm"
+                                    onClick={() => {
+                                      setReceiptPhoto(null);
+                                      setReceiptPhotoMeta(null);
+                                    }}
+                                  >
+                                    ✕ Remove
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn bb bsm"
+                                    onClick={() => document.getElementById('receipt-photo-input').click()}
+                                  >
+                                    🔄 Change Photo
+                                  </button>
+                                </div>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  id="receipt-photo-input"
+                                  style={{ display: 'none' }}
+                                  onChange={handleReceiptPhotoUpload}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -984,7 +1389,11 @@ REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW AP
                               setAppStatus(val);
                               if (val !== 'doc_collection') {
                                 setHasGST(false);
+                                setGstPhoto(null);
                                 setHasPAN(false);
+                                setPanPhoto(null);
+                                setRentalNeed(false);
+                                setRentalPhoto(null);
                               }
                             }}
                             required
@@ -1002,32 +1411,226 @@ REMARKS : ${(visitData.remarks || (visitData.pay === 'new_application' ? 'NEW AP
                       {/* Doc checklist */}
                       {appStatus === 'doc_collection' && (
                         <div style={{ marginTop: '13px' }}>
-                          <label>Documents Checklist</label>
-                          <div className="rdgrp">
-                            <label className="rdopt">
-                              <input
-                                type="checkbox"
-                                checked={hasGST}
-                                onChange={(e) => setHasGST(e.target.checked)}
-                              />{' '}
-                              🧾 GST
-                            </label>
-                            <label className="rdopt">
-                              <input
-                                type="checkbox"
-                                checked={hasPAN}
-                                onChange={(e) => setHasPAN(e.target.checked)}
-                              />{' '}
-                              🪪 PAN
-                            </label>
-                            <label className="rdopt">
-                              <input
-                                type="checkbox"
-                                checked={rentalNeed}
-                                onChange={(e) => setRentalNeed(e.target.checked)}
-                              />{' '}
-                              🏘️ Rental Deed
-                            </label>
+                          <label>Documents Checklist &amp; Uploads</label>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '8px' }}>
+                            {/* GST Document */}
+                            <div style={{ border: '1px solid var(--br)', borderRadius: '8px', padding: '10px', background: 'var(--bg-card)' }}>
+                              <label className="rdopt" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={hasGST}
+                                  onChange={(e) => {
+                                    setHasGST(e.target.checked);
+                                    if (!e.target.checked) setGstPhoto(null);
+                                  }}
+                                />{' '}
+                                🧾 GST
+                              </label>
+                              {hasGST && (
+                                <div style={{ marginTop: '8px', paddingLeft: '22px' }}>
+                                  {!gstPhoto ? (
+                                    <div>
+                                      <button
+                                        type="button"
+                                        className="btn bo bsm"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        onClick={() => document.getElementById('gst-doc-input').click()}
+                                      >
+                                        📷 Capture / Upload GST Photo
+                                      </button>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        id="gst-doc-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleDocPhotoUpload(e, 'gst')}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <img
+                                        src={gstPhoto}
+                                        alt="GST preview"
+                                        style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--br)' }}
+                                      />
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button
+                                          type="button"
+                                          className="btn bo bsm"
+                                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                                          onClick={() => setGstPhoto(null)}
+                                        >
+                                          ✕ Remove
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn bb bsm"
+                                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                                          onClick={() => document.getElementById('gst-doc-input').click()}
+                                        >
+                                          🔄 Change
+                                        </button>
+                                      </div>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        id="gst-doc-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleDocPhotoUpload(e, 'gst')}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* PAN Document */}
+                            <div style={{ border: '1px solid var(--br)', borderRadius: '8px', padding: '10px', background: 'var(--bg-card)' }}>
+                              <label className="rdopt" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={hasPAN}
+                                  onChange={(e) => {
+                                    setHasPAN(e.target.checked);
+                                    if (!e.target.checked) setPanPhoto(null);
+                                  }}
+                                />{' '}
+                                🪪 PAN
+                              </label>
+                              {hasPAN && (
+                                <div style={{ marginTop: '8px', paddingLeft: '22px' }}>
+                                  {!panPhoto ? (
+                                    <div>
+                                      <button
+                                        type="button"
+                                        className="btn bo bsm"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        onClick={() => document.getElementById('pan-doc-input').click()}
+                                      >
+                                        📷 Capture / Upload PAN Photo
+                                      </button>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        id="pan-doc-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleDocPhotoUpload(e, 'pan')}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <img
+                                        src={panPhoto}
+                                        alt="PAN preview"
+                                        style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--br)' }}
+                                      />
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button
+                                          type="button"
+                                          className="btn bo bsm"
+                                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                                          onClick={() => setPanPhoto(null)}
+                                        >
+                                          ✕ Remove
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn bb bsm"
+                                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                                          onClick={() => document.getElementById('pan-doc-input').click()}
+                                        >
+                                          🔄 Change
+                                        </button>
+                                      </div>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        id="pan-doc-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleDocPhotoUpload(e, 'pan')}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Rental Deed Document */}
+                            <div style={{ border: '1px solid var(--br)', borderRadius: '8px', padding: '10px', background: 'var(--bg-card)' }}>
+                              <label className="rdopt" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={rentalNeed}
+                                  onChange={(e) => {
+                                    setRentalNeed(e.target.checked);
+                                    if (!e.target.checked) setRentalPhoto(null);
+                                  }}
+                                />{' '}
+                                🏘️ Rental Deed
+                              </label>
+                              {rentalNeed && (
+                                <div style={{ marginTop: '8px', paddingLeft: '22px' }}>
+                                  {!rentalPhoto ? (
+                                    <div>
+                                      <button
+                                        type="button"
+                                        className="btn bo bsm"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        onClick={() => document.getElementById('rental-doc-input').click()}
+                                      >
+                                        📷 Capture / Upload Rental Deed Photo
+                                      </button>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        id="rental-doc-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleDocPhotoUpload(e, 'rental')}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <img
+                                        src={rentalPhoto}
+                                        alt="Rental preview"
+                                        style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--br)' }}
+                                      />
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button
+                                          type="button"
+                                          className="btn bo bsm"
+                                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                                          onClick={() => setRentalPhoto(null)}
+                                        >
+                                          ✕ Remove
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn bb bsm"
+                                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                                          onClick={() => document.getElementById('rental-doc-input').click()}
+                                        >
+                                          🔄 Change
+                                        </button>
+                                      </div>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        id="rental-doc-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleDocPhotoUpload(e, 'rental')}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>

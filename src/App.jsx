@@ -252,7 +252,7 @@ export default function App() {
         case 'track':
           return <AdminGPSTracking showToast={showToast} />;
         case 'rpt':
-          return <AdminReports showToast={showToast} />;
+          return <AdminReports showToast={showToast} showPhotoModal={setPreviewPhoto} />;
         case 'att':
           return <AdminAttendance showToast={showToast} showPhotoModal={setPreviewPhoto} />;
         case 'set':

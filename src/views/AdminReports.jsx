@@ -12,6 +12,14 @@ const PAYLBL = {
   new_application: { t: 'New Application', c: 'da' },
 };
 
+const ASLBL = {
+  doc_collection: '📄 Doc. Collection',
+  approval: '✅ Approval',
+  payment_paid: '💰 Payment Paid',
+  close: '🔒 Close',
+  others: '📌 Others',
+};
+
 const getLocalDateString = (tsStr) => {
   if (!tsStr) return '';
   const d = new Date(tsStr);
@@ -22,7 +30,7 @@ const getLocalDateString = (tsStr) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-export default function AdminReports({ showToast }) {
+export default function AdminReports({ showToast, showPhotoModal }) {
   const [officers, setOfficers] = useState([]);
   const [activeReportTab, setActiveReportTab] = useState('day');
   
@@ -173,7 +181,7 @@ export default function AdminReports({ showToast }) {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Photo</th>
+                <th>Photos</th>
                 <th>Date</th>
                 <th>Officer</th>
                 <th>Company</th>
@@ -191,7 +199,13 @@ export default function AdminReports({ showToast }) {
                 <tr>
                   <td>${idx + 1}</td>
                   <td>
-                    ${v.ph ? `<img src="${v.ph}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />` : '—'}
+                    <div style="display:flex;gap:4px;align-items:center;">
+                      ${v.ph ? `<img src="${v.ph}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />` : '—'}
+                      ${(v.receiptPhoto || v.docs?.receiptPhoto) ? `<img src="${v.receiptPhoto || v.docs.receiptPhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid green;" />` : ''}
+                      ${v.docs?.gstPhoto ? `<img src="${v.docs.gstPhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid blue;" />` : ''}
+                      ${v.docs?.panPhoto ? `<img src="${v.docs.panPhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid blue;" />` : ''}
+                      ${v.docs?.rentalPhoto ? `<img src="${v.docs.rentalPhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid blue;" />` : ''}
+                    </div>
                   </td>
                   <td>${new Date(v.ts).toLocaleString('en-IN')}</td>
                   <td>${v.offName}</td>
@@ -201,7 +215,17 @@ export default function AdminReports({ showToast }) {
                   <td>${v.zn}</td>
                   <td>${v.asn || '—'}</td>
                   <td>${v.isNew ? 'New App' : 'Existing'}</td>
-                  <td>${payStatusText(v.pay)}</td>
+                  <td>
+                    ${payStatusText(v.pay)}
+                    ${v.pay === 'paid' ? `
+                      <br/>
+                      <span style="font-size:9px;color:#555;display:block;margin-top:2px;">
+                        Mode: ${v.payMode === 'online_payment' ? 'Online' : v.payMode === 'cheque' ? 'Cheque' : v.payMode === 'cash' ? 'Cash' : (v.docs?.payMode === 'online_payment' ? 'Online' : v.docs?.payMode === 'cheque' ? 'Cheque' : v.docs?.payMode === 'cash' ? 'Cash' : '—')}
+                        <br/>
+                        Receipt: ${(v.receiptCollected === 'yes' || v.docs?.receiptCollected === 'yes') ? 'Yes' : 'No'}
+                      </span>
+                    ` : ''}
+                  </td>
                   <td>${v.pay === 'paid' ? '₹' + v.amt.toLocaleString('en-IN') : '—'}</td>
                 </tr>
               `).join('') || '<tr><td colspan="12" style="text-align:center;">No records found</td></tr>'}
@@ -709,6 +733,7 @@ export default function AdminReports({ showToast }) {
                   <thead>
                     <tr>
                       <th style={{ padding: '10px' }}>#</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Photos</th>
                       <th style={{ padding: '10px', textAlign: 'left' }}>Date &amp; Time</th>
                       <th style={{ padding: '10px', textAlign: 'left' }}>Officer</th>
                       <th style={{ padding: '10px', textAlign: 'left' }}>Company</th>
@@ -723,6 +748,73 @@ export default function AdminReports({ showToast }) {
                     {filteredVisits.map((v, idx) => (
                       <tr key={v.id}>
                         <td style={{ padding: '10px', color: 'var(--mu)', textAlign: 'center' }}>{idx + 1}</td>
+                        <td style={{ padding: '10px' }}>
+                          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                            {v.ph ? (
+                              <img
+                                src={v.ph}
+                                alt="Visit"
+                                style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                                onClick={() => showPhotoModal && showPhotoModal(v)}
+                                title="View visit photo"
+                              />
+                            ) : (
+                              <span style={{ color: 'var(--mu)' }}>—</span>
+                            )}
+                            {(v.receiptPhoto || v.docs?.receiptPhoto) && (
+                              <img
+                                src={v.receiptPhoto || v.docs.receiptPhoto}
+                                alt="Receipt"
+                                style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1.2px solid var(--gn)' }}
+                                onClick={() => showPhotoModal && showPhotoModal({
+                                  ...v,
+                                  ph: v.receiptPhoto || v.docs.receiptPhoto,
+                                  co: `${v.co} (Receipt)`
+                                })}
+                                title="View receipt photo"
+                              />
+                            )}
+                            {v.docs?.gstPhoto && (
+                              <img
+                                src={v.docs.gstPhoto}
+                                alt="GST"
+                                style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1.2px solid var(--bl)' }}
+                                onClick={() => showPhotoModal && showPhotoModal({
+                                  ...v,
+                                  ph: v.docs.gstPhoto,
+                                  co: `${v.co} (GST Doc)`
+                                })}
+                                title="View GST Doc"
+                              />
+                            )}
+                            {v.docs?.panPhoto && (
+                              <img
+                                src={v.docs.panPhoto}
+                                alt="PAN"
+                                style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1.2px solid var(--bl)' }}
+                                onClick={() => showPhotoModal && showPhotoModal({
+                                  ...v,
+                                  ph: v.docs.panPhoto,
+                                  co: `${v.co} (PAN Doc)`
+                                })}
+                                title="View PAN Doc"
+                              />
+                            )}
+                            {v.docs?.rentalPhoto && (
+                              <img
+                                src={v.docs.rentalPhoto}
+                                alt="Rental"
+                                style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1.2px solid var(--bl)' }}
+                                onClick={() => showPhotoModal && showPhotoModal({
+                                  ...v,
+                                  ph: v.docs.rentalPhoto,
+                                  co: `${v.co} (Rental Deed)`
+                                })}
+                                title="View Rental Deed"
+                              />
+                            )}
+                          </div>
+                        </td>
                         <td style={{ padding: '10px', fontWeight: 600 }}>
                           {v.ts ? new Date(v.ts).toLocaleString('en-IN', {
                             day: '2-digit',
@@ -743,14 +835,31 @@ export default function AdminReports({ showToast }) {
                           <span className={`bdg ${PAYLBL[v.pay]?.c || 'dm'}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
                             {PAYLBL[v.pay]?.t || 'Unpaid'}
                           </span>
+                          {v.pay === 'paid' && (
+                            <>
+                              <br />
+                              <span className="bdg dm" style={{ fontSize: '10px', marginTop: '3px', display: 'inline-block' }}>
+                                {v.payMode === 'online_payment' ? 'Online' : v.payMode === 'cheque' ? 'Cheque' : v.payMode === 'cash' ? 'Cash' : (v.docs?.payMode === 'online_payment' ? 'Online' : v.docs?.payMode === 'cheque' ? 'Cheque' : v.docs?.payMode === 'cash' ? 'Cash' : '—')}
+                              </span>
+                              <br />
+                              <span className={`bdg ${(v.receiptCollected === 'yes' || v.docs?.receiptCollected === 'yes') ? 'dg' : 'dr'}`} style={{ fontSize: '10px', marginTop: '3px', display: 'inline-block' }}>
+                                {(v.receiptCollected === 'yes' || v.docs?.receiptCollected === 'yes') ? 'Receipt: Yes' : 'Receipt: No'}
+                              </span>
+                            </>
+                          )}
                         </td>
                         <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: 'var(--gn)' }}>
                           {v.pay === 'paid' ? `₹${v.amt.toLocaleString('en-IN')}` : '—'}
                         </td>
                         <td style={{ padding: '10px', textAlign: 'center' }}>
                           <span className={`bdg ${v.appStatus === 'approved' ? 'dg' : v.appStatus === 'rejected' ? 'dr' : 'da'}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
-                            {v.appStatus || 'Pending'}
+                            {ASLBL[v.appStatus] || v.appStatus || 'Pending'}
                           </span>
+                          {v.appStatus === 'doc_collection' && v.docs && (
+                            <div style={{ marginTop: '5px', fontSize: '9.5px', color: 'var(--mu)', lineHeight: '1.4' }}>
+                              Docs: {v.docs.gst ? '🧾GST ' : ''}{v.docs.pan ? '🪪PAN ' : ''}{v.docs.rentalNeed ? '🏘️Rental' : ''}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

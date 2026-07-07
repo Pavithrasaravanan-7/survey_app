@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS visits (
   lng          TEXT,
   ph           TEXT,
   phf          TEXT,
+  pay_mode     TEXT DEFAULT '',
+  receipt_collected TEXT DEFAULT '',
+  receipt_photo TEXT DEFAULT '',
   ts           TIMESTAMPTZ NOT NULL DEFAULT now(),
   date         DATE NOT NULL DEFAULT CURRENT_DATE
 );
@@ -80,6 +83,9 @@ CREATE TABLE IF NOT EXISTS attendance (
   UNIQUE(off_id, date)
 );
 ALTER TABLE attendance ADD COLUMN IF NOT EXISTS photo TEXT;
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS pay_mode TEXT DEFAULT '';
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS receipt_collected TEXT DEFAULT '';
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS receipt_photo TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS permissions (
   id        BIGINT PRIMARY KEY,

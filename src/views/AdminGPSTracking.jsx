@@ -12,6 +12,50 @@ const getLocalDateString = (tsStr) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const getDistanceKM = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const getAngle = (lat1, lon1, lat2, lon2) => {
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const lat1Rad = lat1 * Math.PI / 180;
+  const lat2Rad = lat2 * Math.PI / 180;
+  const y = Math.sin(dLon) * Math.cos(lat2Rad);
+  const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+  let brng = Math.atan2(y, x) * 180 / Math.PI;
+  return (brng + 360) % 360;
+};
+
+const getTimeDiffString = (ts1, ts2) => {
+  if (!ts1 || !ts2) return '';
+  const diffMs = Math.abs(new Date(ts2) - new Date(ts1));
+  const diffSecs = Math.round(diffMs / 1000);
+  
+  if (diffSecs < 60) {
+    return `${diffSecs} sec${diffSecs !== 1 ? 's' : ''}`;
+  }
+  
+  const mins = Math.floor(diffSecs / 60);
+  const secs = diffSecs % 60;
+  
+  if (mins < 60) {
+    return `${mins} min${mins !== 1 ? 's' : ''} ${secs} sec${secs !== 1 ? 's' : ''}`;
+  }
+  
+  const hrs = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  return `${hrs} hr${hrs !== 1 ? 's' : ''} ${remainingMins} min${remainingMins !== 1 ? 's' : ''} ${secs} sec${secs !== 1 ? 's' : ''}`;
+};
+
 const OFFICER_COLORS = [
   '#1a56db', '#0694a2', '#057a55', '#d97706', '#e02424',
   '#7e3af2', '#c2780e', '#0b8a00', '#9061f9', '#a21caf'
@@ -209,7 +253,32 @@ export default function AdminGPSTracking({ showToast }) {
       ]);
       
       const trackData = TR[selectedOfficer];
-      const pts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      const rawPts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      const sortedPts = [...rawPts].sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+      const pts = sortedPts.map((p, index) => {
+        if (index === 0) {
+          return {
+            ...p,
+            distanceText: 'Start point',
+            timeText: '',
+          };
+        }
+        const prev = sortedPts[index - 1];
+        const km = getDistanceKM(
+          parseFloat(prev.lat),
+          parseFloat(prev.lng),
+          parseFloat(p.lat),
+          parseFloat(p.lng)
+        );
+        const timeDiff = getTimeDiffString(prev.ts, p.ts);
+        return {
+          ...p,
+          distanceText: `${km.toFixed(2)} km`,
+          timeText: `${timeDiff}`,
+        };
+      });
+
       const visits = V.filter(
         (v) =>
           v.offId === parseInt(selectedOfficer) &&
@@ -224,22 +293,72 @@ export default function AdminGPSTracking({ showToast }) {
 
       const latlngs = pts.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
 
-      // Draw route polyline
+      // Draw route polyline and direction arrows
       if (latlngs.length > 1) {
-        const polyline = L.polyline(latlngs, { color: '#1a56db', weight: 4, opacity: 0.7 }).addTo(map);
+        const polyline = L.polyline(latlngs, { color: '#1a56db', weight: 4, opacity: 0.75 }).addTo(map);
         routeLayers.current.push(polyline);
+
+        // Draw direction arrows along the segments
+        for (let idx = 1; idx < latlngs.length; idx++) {
+          const prev = latlngs[idx - 1];
+          const cur = latlngs[idx];
+          const midLat = (prev[0] + cur[0]) / 2;
+          const midLng = (prev[1] + cur[1]) / 2;
+          const angle = getAngle(prev[0], prev[1], cur[0], cur[1]);
+
+          const arrowIcon = L.divIcon({
+            html: `<div style="transform: rotate(${angle}deg); font-size: 13px; color: #1a56db; line-height: 1; text-align: center; text-shadow: 0 0 2px #fff;">➤</div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+            className: '',
+          });
+          const arrowMarker = L.marker([midLat, midLng], { icon: arrowIcon }).addTo(map);
+          routeLayers.current.push(arrowMarker);
+        }
       }
 
       // Draw track point markers
       pts.forEach((p, i) => {
+        const isStart = i === 0;
+        const isEnd = i === pts.length - 1;
+
+        let color = '#1a56db';
+        let label = `${i + 1}`;
+        let size = 26;
+        let borderRadius = '50%';
+        let border = 'none';
+
+        if (isStart) {
+          color = '#057a55'; // Green for Start
+          label = 'START';
+          size = 46;
+          borderRadius = '4px';
+          border = '2px solid #fff';
+        } else if (isEnd) {
+          color = '#e02424'; // Red for End
+          label = 'END';
+          size = 38;
+          borderRadius = '4px';
+          border = '2px solid #fff';
+        }
+
         const ic = L.divIcon({
-          html: `<div style="background:#1a56db;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${i + 1}</div>`,
-          iconSize: [26, 26],
+          html: `<div style="background:${color};color:#fff;border-radius:${borderRadius};width:${size}px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:${border};">${label}</div>`,
+          iconSize: [size, 26],
           className: '',
         });
+        
+        let popupContent = `<strong>Point ${i + 1}</strong><br>🕐 ${new Date(p.ts).toLocaleTimeString('en-IN')}`;
+        if (isStart) popupContent = `🏁 <strong>Start Point (Point 1)</strong><br>🕐 ${new Date(p.ts).toLocaleTimeString('en-IN')}`;
+        if (isEnd) popupContent = `🏁 <strong>End Point (Point ${i + 1})</strong><br>🕐 ${new Date(p.ts).toLocaleTimeString('en-IN')}`;
+        
+        if (i > 0 && p.distanceText) {
+          popupContent += `<br>➡️ Distance: ${p.distanceText} (${p.timeText} from Point ${i})`;
+        }
+
         const marker = L.marker([parseFloat(p.lat), parseFloat(p.lng)], { icon: ic })
           .addTo(map)
-          .bindPopup(`🕐 ${new Date(p.ts).toLocaleTimeString('en-IN')}`);
+          .bindPopup(popupContent);
         routeLayers.current.push(marker);
       });
 
@@ -257,29 +376,80 @@ export default function AdminGPSTracking({ showToast }) {
         routeLayers.current.push(marker);
       });
 
-      // Fit bounds
+      // Fit bounds and zoom in closely
       const allPts = [
         ...latlngs,
         ...visits.filter((v) => v.lat).map((v) => [parseFloat(v.lat), parseFloat(v.lng)]),
       ];
       if (allPts.length > 0) {
-        map.fitBounds(allPts, { padding: [30, 30] });
+        map.fitBounds(allPts, { padding: [50, 50], maxZoom: 17 });
+        if (allPts.length === 1) {
+          map.setView(allPts[0], 17);
+        }
       }
 
       // Waypoints lists
-      const items = [
-        ...pts.map((p) => ({
+      const rawItems = [
+        ...pts.map((p, index) => ({
           ts: p.ts,
+          lat: p.lat,
+          lng: p.lng,
           html: `📍 ${p.lat}, ${p.lng}`,
           isVisit: false,
+          pointIndex: index + 1,
         })),
         ...visits.map((v) => ({
           ts: v.ts,
+          lat: v.lat,
+          lng: v.lng,
           html: <strong>{v.co} — {v.dno ? v.dno + ', ' : ''}{v.st}</strong>,
           isVisit: true,
         })),
       ];
-      setRouteWaypoints(items.sort((a, b) => new Date(a.ts) - new Date(b.ts)));
+
+      const sortedItems = rawItems.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+      const enrichedItems = sortedItems.map((it, idx) => {
+        if (idx === 0) {
+          return {
+            ...it,
+            distanceText: '',
+            timeText: '',
+          };
+        }
+
+        // Find previous item with coordinates
+        let prev = null;
+        for (let j = idx - 1; j >= 0; j--) {
+          if (sortedItems[j].lat && sortedItems[j].lng) {
+            prev = sortedItems[j];
+            break;
+          }
+        }
+
+        if (prev && it.lat && it.lng) {
+          const km = getDistanceKM(
+            parseFloat(prev.lat),
+            parseFloat(prev.lng),
+            parseFloat(it.lat),
+            parseFloat(it.lng)
+          );
+          const timeDiff = getTimeDiffString(prev.ts, it.ts);
+          return {
+            ...it,
+            distanceText: `${km.toFixed(2)} km`,
+            timeText: `${timeDiff}`,
+          };
+        }
+
+        return {
+          ...it,
+          distanceText: '',
+          timeText: '',
+        };
+      });
+
+      setRouteWaypoints(enrichedItems);
     } catch (err) {
       showToast('Failed to retrieve route: ' + err.message, 'red');
     }
@@ -298,7 +468,32 @@ export default function AdminGPSTracking({ showToast }) {
       ]);
       
       const trackData = TR[selectedOfficer];
-      const pts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      const rawPts = (trackData?.pts || []).filter((p) => getLocalDateString(p.ts) === selectedDate);
+      const sortedPts = [...rawPts].sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+      const enrichedPts = sortedPts.map((p, index) => {
+        if (index === 0) {
+          return {
+            ...p,
+            distanceText: 'Start point',
+            timeText: '',
+          };
+        }
+        const prev = sortedPts[index - 1];
+        const km = getDistanceKM(
+          parseFloat(prev.lat),
+          parseFloat(prev.lng),
+          parseFloat(p.lat),
+          parseFloat(p.lng)
+        );
+        const timeDiff = getTimeDiffString(prev.ts, p.ts);
+        return {
+          ...p,
+          distanceText: `${km.toFixed(2)} km`,
+          timeText: `${timeDiff}`,
+        };
+      });
+
       const V = VList.filter(
         (v) =>
           v.offId === parseInt(selectedOfficer) &&
@@ -331,7 +526,7 @@ export default function AdminGPSTracking({ showToast }) {
               <span>Date: ${selectedDate}</span>
               <span>Visits: ${V.length}</span>
               <span>Amount: ₹${totAmt.toLocaleString('en-IN')}</span>
-              <span>GPS Points: ${pts.length}</span>
+              <span>GPS Points: ${enrichedPts.length}</span>
             </div>
 
             <h4>Visits Summary</h4>
@@ -374,17 +569,21 @@ export default function AdminGPSTracking({ showToast }) {
                   <th>Time</th>
                   <th>Latitude</th>
                   <th>Longitude</th>
+                  <th>Distance from Previous</th>
+                  <th>Time Elapsed</th>
                 </tr>
               </thead>
               <tbody>
-                ${pts.map((p, i) => `
+                ${enrichedPts.map((p, i) => `
                   <tr>
                     <td>${i + 1}</td>
                     <td>${new Date(p.ts).toLocaleTimeString('en-IN')}</td>
                     <td>${p.lat}</td>
                     <td>${p.lng}</td>
+                    <td>${i === 0 ? 'Start' : p.distanceText}</td>
+                    <td>${i === 0 ? '—' : p.timeText}</td>
                   </tr>
-                `).join('') || '<tr><td colspan="4" style="text-align:center;">No GPS points recorded</td></tr>'}
+                `).join('') || '<tr><td colspan="6" style="text-align:center;">No GPS points recorded</td></tr>'}
               </tbody>
             </table>
           </body>
@@ -393,6 +592,20 @@ export default function AdminGPSTracking({ showToast }) {
       printWindow.document.close();
     } catch (err) {
       showToast('Failed to print route report: ' + err.message, 'red');
+    }
+  };
+
+  const handleLocateOfficer = (officerId) => {
+    const marker = liveMarkers.current[officerId];
+    const map = liveMapInstance.current;
+    if (marker && map) {
+      const latlng = marker.getLatLng();
+      map.setView(latlng, 18);
+      marker.openPopup();
+      liveMapRef.current?.scrollIntoView({ behavior: 'smooth' });
+      showToast('Centering live map on officer location 📍', 'green');
+    } else {
+      showToast('No live location available for this officer', 'amber');
     }
   };
 
@@ -431,6 +644,7 @@ export default function AdminGPSTracking({ showToast }) {
               return (
                 <div
                   key={o.id}
+                  onClick={() => handleLocateOfficer(o.id)}
                   style={{
                     background: 'rgba(255,255,255,.97)',
                     backdropFilter: 'blur(8px)',
@@ -442,7 +656,9 @@ export default function AdminGPSTracking({ showToast }) {
                     boxShadow: 'var(--shadow-sm)',
                     marginBottom: '10px',
                     border: '1px solid rgba(255,255,255,.8)',
+                    cursor: lastPt ? 'pointer' : 'default',
                   }}
+                  title={lastPt ? 'Click to locate officer on live map' : ''}
                 >
                   <div
                     style={{
@@ -538,11 +754,18 @@ export default function AdminGPSTracking({ showToast }) {
             <div className="wproute" id="rt-list">
               {routeWaypoints.length > 0 ? (
                 routeWaypoints.map((it, i) => (
-                  <div key={i} className="wpitem">
-                    <div className={`wpdot ${it.isVisit ? 'wpv' : ''}`}>{it.isVisit ? '🏢' : i + 1}</div>
-                    <div>
-                      🕐 {new Date(it.ts).toLocaleTimeString('en-IN')} — {it.html}
+                  <div key={i} className="wpitem" style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px dashed var(--br)', paddingBottom: '8px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div className={`wpdot ${it.isVisit ? 'wpv' : ''}`}>{it.isVisit ? '🏢' : it.pointIndex}</div>
+                      <div>
+                        🕐 {new Date(it.ts).toLocaleTimeString('en-IN')} — {it.html}
+                      </div>
                     </div>
+                    {it.distanceText && (
+                      <div style={{ marginLeft: '36px', fontSize: '11.5px', color: 'var(--tl)', fontWeight: 600 }}>
+                        ➡️ Segment: <span style={{ color: 'var(--bl)' }}>{it.distanceText}</span> in <span style={{ color: 'var(--bl)' }}>{it.timeText}</span>
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (

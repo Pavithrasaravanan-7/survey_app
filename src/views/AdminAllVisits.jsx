@@ -200,7 +200,7 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                   <th>Type</th>
                   <th>Payment</th>
                   <th>Amount</th>
-                  <th>Photo</th>
+                  <th>Photos</th>
                   <th>GPS</th>
                 </tr>
               </thead>
@@ -251,30 +251,178 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                               </span>
                             </>
                           )}
+                          {v.appStatus === 'doc_collection' && v.docs && (
+                            <div style={{ marginTop: '5px', fontSize: '10.5px', color: 'var(--mu)', lineHeight: '1.5' }}>
+                              <strong>Docs Collected:</strong>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '3px' }}>
+                                {v.docs.gst && (
+                                  <span
+                                    className="bdg db"
+                                    style={{ fontSize: '9.5px', cursor: v.docs.gstPhoto ? 'pointer' : 'default', padding: '2px 5px' }}
+                                    onClick={() => v.docs.gstPhoto && showPhotoModal({
+                                      ...v,
+                                      ph: v.docs.gstPhoto,
+                                      co: `${v.co} (GST Doc)`
+                                    })}
+                                    title={v.docs.gstPhoto ? "Click to view GST Photo" : ""}
+                                  >
+                                    🧾 GST
+                                  </span>
+                                )}
+                                {v.docs.pan && (
+                                  <span
+                                    className="bdg db"
+                                    style={{ fontSize: '9.5px', cursor: v.docs.panPhoto ? 'pointer' : 'default', padding: '2px 5px' }}
+                                    onClick={() => v.docs.panPhoto && showPhotoModal({
+                                      ...v,
+                                      ph: v.docs.panPhoto,
+                                      co: `${v.co} (PAN Doc)`
+                                    })}
+                                    title={v.docs.panPhoto ? "Click to view PAN Photo" : ""}
+                                  >
+                                    🪪 PAN
+                                  </span>
+                                )}
+                                {v.docs.rentalNeed && (
+                                  <span
+                                    className="bdg db"
+                                    style={{ fontSize: '9.5px', cursor: v.docs.rentalPhoto ? 'pointer' : 'default', padding: '2px 5px' }}
+                                    onClick={() => v.docs.rentalPhoto && showPhotoModal({
+                                      ...v,
+                                      ph: v.docs.rentalPhoto,
+                                      co: `${v.co} (Rental Deed)`
+                                    })}
+                                    title={v.docs.rentalPhoto ? "Click to view Rental Deed" : ""}
+                                  >
+                                    🏘️ Rental
+                                  </span>
+                                )}
+                                {!v.docs.gst && !v.docs.pan && !v.docs.rentalNeed && <span>None</span>}
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td>
                           <span className={`bdg ${payDetails.c}`}>{payDetails.t}</span>
+                          {v.pay === 'paid' && (
+                            <>
+                              <br />
+                              <span className="bdg dm" style={{ fontSize: '10px', marginTop: '3px' }}>
+                                {v.payMode === 'online_payment' ? 'Online' : v.payMode === 'cheque' ? 'Cheque' : v.payMode === 'cash' ? 'Cash' : (v.docs?.payMode === 'online_payment' ? 'Online' : v.docs?.payMode === 'cheque' ? 'Cheque' : v.docs?.payMode === 'cash' ? 'Cash' : '—')}
+                              </span>
+                              <br />
+                              <span className={`bdg ${(v.receiptCollected === 'yes' || v.docs?.receiptCollected === 'yes') ? 'dg' : 'dr'}`} style={{ fontSize: '10px', marginTop: '3px' }}>
+                                {(v.receiptCollected === 'yes' || v.docs?.receiptCollected === 'yes') ? 'Receipt: Yes' : 'Receipt: No'}
+                              </span>
+                            </>
+                          )}
                         </td>
                         <td>{v.pay === 'paid' ? <strong>₹{v.amt.toLocaleString('en-IN')}</strong> : '—'}</td>
                         <td>
-                          {v.ph ? (
-                            <img
-                              src={v.ph}
-                              alt="Visit preview"
-                              style={{
-                                width: '36px',
-                                height: '36px',
-                                objectFit: 'cover',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                boxShadow: 'var(--shadow-sm)',
-                              }}
-                              onClick={() => showPhotoModal(v)}
-                              title="View photo"
-                            />
-                          ) : (
-                            <span style={{ color: 'var(--mu)' }}>—</span>
-                          )}
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                            {v.ph ? (
+                              <img
+                                src={v.ph}
+                                alt="Visit preview"
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  boxShadow: 'var(--shadow-sm)',
+                                }}
+                                onClick={() => showPhotoModal(v)}
+                                title="View visit photo"
+                              />
+                            ) : (
+                              <span style={{ color: 'var(--mu)' }}>—</span>
+                            )}
+                            {(v.receiptPhoto || v.docs?.receiptPhoto) && (
+                              <img
+                                src={v.receiptPhoto || v.docs.receiptPhoto}
+                                alt="Receipt preview"
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  boxShadow: 'var(--shadow-sm)',
+                                  border: '1.5px solid var(--gn)'
+                                }}
+                                onClick={() => showPhotoModal({
+                                  ...v,
+                                  ph: v.receiptPhoto || v.docs.receiptPhoto,
+                                  co: `${v.co} (Receipt)`
+                                })}
+                                title="View receipt photo"
+                              />
+                            )}
+                            {v.docs?.gstPhoto && (
+                              <img
+                                src={v.docs.gstPhoto}
+                                alt="GST preview"
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  boxShadow: 'var(--shadow-sm)',
+                                  border: '1.5px solid var(--bl)'
+                                }}
+                                onClick={() => showPhotoModal({
+                                  ...v,
+                                  ph: v.docs.gstPhoto,
+                                  co: `${v.co} (GST Doc)`
+                                })}
+                                title="View GST Document"
+                              />
+                            )}
+                            {v.docs?.panPhoto && (
+                              <img
+                                src={v.docs.panPhoto}
+                                alt="PAN preview"
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  boxShadow: 'var(--shadow-sm)',
+                                  border: '1.5px solid var(--bl)'
+                                }}
+                                onClick={() => showPhotoModal({
+                                  ...v,
+                                  ph: v.docs.panPhoto,
+                                  co: `${v.co} (PAN Doc)`
+                                })}
+                                title="View PAN Document"
+                              />
+                            )}
+                            {v.docs?.rentalPhoto && (
+                              <img
+                                src={v.docs.rentalPhoto}
+                                alt="Rental preview"
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  boxShadow: 'var(--shadow-sm)',
+                                  border: '1.5px solid var(--bl)'
+                                }}
+                                onClick={() => showPhotoModal({
+                                  ...v,
+                                  ph: v.docs.rentalPhoto,
+                                  co: `${v.co} (Rental Deed)`
+                                })}
+                                title="View Rental Deed"
+                              />
+                            )}
+                          </div>
                         </td>
                         <td style={{ fontSize: '11px', color: 'var(--mu)' }}>
                           {v.lat ? (
