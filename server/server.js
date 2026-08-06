@@ -11,33 +11,22 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 const allowedOrigins = [
-    "https://survey.coimbatoreicc.com",
-   'https://survey-app.sampathreliant.workers.dev',
-  'https://survey-app-seven-sand.vercel.app',
-  'https://survey-app-newdev3.vercel.app',
-  'https://survey-app-7h98.onrender.com',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
+  "https://survey-app.sampathreliant.workers.dev",
+  "https://survey.coimbatoreiccc.com"
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      origin.startsWith('http://localhost:') ||
-      origin.startsWith('http://127.0.0.1:')
-    ) {
-      return callback(null, true);
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
     }
-    callback(new Error('CORS policy does not allow access from the specified Origin.'));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true,
+  credentials: true
 }));
+
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
