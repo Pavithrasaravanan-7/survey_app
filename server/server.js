@@ -13,7 +13,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   "https://survey-app.sampathreliant.workers.dev",
-  "https://survey.coimbatoreiccc.com"
+  "https://survey.coimbatoreiccc.com",
+  "https://survey-app-seven-sand.vercel.app",
+  "https://survey-app-newdev3.vercel.app",
+  "https://survey-app-7h98.onrender.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
 ];
 
 app.use(cors({
@@ -94,6 +99,7 @@ const rowToUser = (r) => ({
 // ═════════════════════ AUTH API ═════════════════════
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, role } = req.body;
+  console.log('🔑 Login request body:', { username, password, role });
   if (!username || !password || !role) {
     return res.status(400).json({ error: 'Username, password and role are required' });
   }
@@ -102,6 +108,7 @@ app.post('/api/auth/login', async (req, res) => {
     `SELECT * FROM users WHERE LOWER(username) = LOWER($1) AND pass = $2 AND role = $3 LIMIT 1`,
     [username.trim(), password, role]
   );
+  console.log('🔍 Matches found:', rows.length);
 
   if (rows.length === 0) {
     return res.status(401).json({ error: 'Invalid credentials or wrong role' });

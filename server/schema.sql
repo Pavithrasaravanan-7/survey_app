@@ -101,5 +101,5 @@ CREATE TABLE IF NOT EXISTS permissions (
 
 -- Seed the default admin account (matches previous db.json seed)
 INSERT INTO users (id, name, username, pass, role, zone, co)
-VALUES (1, 'Admin User', 'admin', 'admin123', 'admin', '', '')
+VALUES (1, 'Admin User', 'admin', 'admin@123', 'admin', '', '')
 ON CONFLICT (id) DO NOTHING;

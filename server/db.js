@@ -52,7 +52,7 @@ export async function waitForDb({ retries = 10, delayMs = 3000 } = {}) {
       return;
     } catch (err) {
       lastError = err;
-      console.warn(`Database connect attempt ${attempt}/${retries} failed: ${err.code || err.message}`);
+      console.warn(`Database connect attempt ${attempt}/${retries} failed: [${err.code || 'NO_CODE'}] ${err.message}`);
       if (attempt < retries) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }

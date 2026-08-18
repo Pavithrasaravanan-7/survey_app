@@ -4,12 +4,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from './db.js';
+import { ensureSchema } from './initDb.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_JSON_PATH = path.join(__dirname, 'db.json');
 
 async function migrate() {
+  await ensureSchema();
   if (!fs.existsSync(DB_JSON_PATH)) {
     console.log('No server/db.json found — nothing to migrate. Schema-only setup, done.');
     process.exit(0);
