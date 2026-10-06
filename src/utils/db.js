@@ -1,144 +1,131 @@
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
+const DEFAULT_BACKEND = 'https://survey-app-7h98.onrender.com/api';
+const API_BASE = (
+  import.meta.env.VITE_API_BASE ||
+  (import.meta.env.DEV ? 'http://localhost:5000/api' : DEFAULT_BACKEND)
+).replace(/\/+$/, '');
+
+async function apiCall(endpoint, options = {}) {
+  const url = `${API_BASE}${endpoint}`;
+  let res;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+  } catch (err) {
+    throw new Error(`Unable to connect to backend server (${API_BASE}). Please check network or CORS.`);
+  }
+
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    if (!res.ok) {
+      throw new Error(`Server error (${res.status} ${res.statusText || ''})`);
+    }
+    throw new Error('Invalid JSON response from server');
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+  }
+
+  return data;
+}
 
 export const DB = {
   async login(username, password, role) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    return apiCall('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, role })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Unauthorized');
-    }
-    return await res.json();
   },
 
   async users() {
-    const res = await fetch(`${API_BASE}/users`);
-    if (!res.ok) throw new Error('Failed to load users');
-    return await res.json();
+    return apiCall('/users');
   },
 
   async addUser(user) {
-    const res = await fetch(`${API_BASE}/users`, {
+    return apiCall('/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(user)
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to add user');
-    }
-    return await res.json();
   },
 
   async updateUser(id, user) {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    return apiCall(`/users/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(user)
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to update user');
-    }
-    return await res.json();
   },
 
   async deleteUser(id) {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    return apiCall(`/users/${id}`, {
       method: 'DELETE'
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to delete user');
-    }
-    return await res.json();
   },
 
   async visits() {
-    const res = await fetch(`${API_BASE}/visits`);
-    if (!res.ok) throw new Error('Failed to load visits');
-    return await res.json();
+    return apiCall('/visits');
   },
+
   async todayVisits(offId) {
-  const res = await fetch(`${API_BASE}/visits/today/${offId}`);
-  if (!res.ok) throw new Error("Failed to load today's visits");
-  return await res.json();
-},
+    return apiCall(`/visits/today/${offId}`);
+  },
 
   async saveVisit(visit) {
-    const res = await fetch(`${API_BASE}/visits`, {
+    return apiCall('/visits', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(visit)
     });
-    if (!res.ok) throw new Error('Failed to save visit');
-    return await res.json();
   },
 
   async clearVisits() {
-    const res = await fetch(`${API_BASE}/visits`, {
+    return apiCall('/visits', {
       method: 'DELETE'
     });
-    if (!res.ok) throw new Error('Failed to clear visits');
-    return await res.json();
   },
 
   async track() {
-    const res = await fetch(`${API_BASE}/track`);
-    if (!res.ok) throw new Error('Failed to load tracking data');
-    return await res.json();
+    return apiCall('/track');
   },
 
   async postTrackPoint(userId, name, lat, lng, ts) {
-    const res = await fetch(`${API_BASE}/track`, {
+    return apiCall('/track', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, name, lat, lng, ts })
     });
-    if (!res.ok) throw new Error('Failed to log location');
-    return await res.json();
   },
 
   async alerts() {
-    const res = await fetch(`${API_BASE}/alerts`);
-    if (!res.ok) throw new Error('Failed to load alerts');
-    return await res.json();
+    return apiCall('/alerts');
   },
 
   async saveAlert(alert) {
-    const res = await fetch(`${API_BASE}/alerts`, {
+    return apiCall('/alerts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(alert)
     });
-    if (!res.ok) throw new Error('Failed to save alert');
-    return await res.json();
   },
 
   async clearAlerts() {
-    const res = await fetch(`${API_BASE}/alerts`, {
+    return apiCall('/alerts', {
       method: 'DELETE'
     });
-    if (!res.ok) throw new Error('Failed to clear alerts');
-    return await res.json();
   },
 
   async attendance() {
-    const res = await fetch(`${API_BASE}/attendance`);
-    if (!res.ok) throw new Error('Failed to load attendance');
-    return await res.json();
+    return apiCall('/attendance');
   },
 
   async saveAttendance(record) {
-    const res = await fetch(`${API_BASE}/attendance`, {
+    return apiCall('/attendance', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(record)
     });
-    if (!res.ok) throw new Error('Failed to save attendance');
-    return await res.json();
   }
 };

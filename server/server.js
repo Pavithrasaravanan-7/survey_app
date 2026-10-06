@@ -11,24 +11,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const allowedOrigins = [
-  "https://survey-app.sampathreliant.workers.dev",
-  "https://survey.coimbatoreiccc.com",
-  "https://survey-app-seven-sand.vercel.app",
-  "https://survey-app-newdev3.vercel.app",
-  "https://survey-app-7h98.onrender.com",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173"
-];
-
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: true,
   credentials: true
 }));
 
