@@ -37,6 +37,7 @@ export default function AdminReports({ showToast, showPhotoModal }) {
   // Day report inputs
   const [dayDate, setDayDate] = useState(new Date().toISOString().split('T')[0]);
   const [dayOfficer, setDayOfficer] = useState('');
+  const [dayTaxType, setDayTaxType] = useState('');
   const [dayCompany, setDayCompany] = useState('');
   const [daySort, setDaySort] = useState('time');
 
@@ -44,11 +45,13 @@ export default function AdminReports({ showToast, showPhotoModal }) {
   const [monthVal, setMonthVal] = useState(new Date().getMonth());
   const [yearVal, setYearVal] = useState(new Date().getFullYear());
   const [monthOfficer, setMonthOfficer] = useState('');
+  const [monthTaxType, setMonthTaxType] = useState('');
   const [monthCompany, setMonthCompany] = useState('');
   const [monthSort, setMonthSort] = useState('time');
 
   // Summaries inputs
   const [summaryPeriod, setSummaryPeriod] = useState('');
+  const [summaryTaxType, setSummaryTaxType] = useState('');
   const [summaryMonthOptions, setSummaryMonthOptions] = useState([]);
 
   // Company summary search
@@ -106,6 +109,9 @@ export default function AdminReports({ showToast, showPhotoModal }) {
         V = V.filter((v) => v.offId === parseInt(dayOfficer));
         officerName = officers.find((o) => o.id === parseInt(dayOfficer))?.name || 'Unknown';
       }
+      if (dayTaxType) {
+        V = V.filter((v) => (v.docs?.taxType || 'Professional Tax') === dayTaxType);
+      }
       if (dayCompany.trim()) {
         const cF = dayCompany.trim().toLowerCase();
         V = V.filter((v) => v.co.toLowerCase().includes(cF));
@@ -128,6 +134,9 @@ export default function AdminReports({ showToast, showPhotoModal }) {
       if (monthOfficer) {
         V = V.filter((v) => v.offId === parseInt(monthOfficer));
         officerName = officers.find((o) => o.id === parseInt(monthOfficer))?.name || 'Unknown';
+      }
+      if (monthTaxType) {
+        V = V.filter((v) => (v.docs?.taxType || 'Professional Tax') === monthTaxType);
       }
       if (monthCompany.trim()) {
         const cF = monthCompany.trim().toLowerCase();
@@ -253,7 +262,7 @@ export default function AdminReports({ showToast, showPhotoModal }) {
   const getOfficerSummary = () => {
     if (!summaryPeriod) return [];
     const [yr, mo] = summaryPeriod.split('-').map(Number);
-    const V = visitsList.filter((v) => {
+    let V = visitsList.filter((v) => {
       const dateStr = v.date || (v.ts ? getLocalDateString(v.ts) : '');
       if (!dateStr) return false;
       const parts = dateStr.split('-');
@@ -263,9 +272,13 @@ export default function AdminReports({ showToast, showPhotoModal }) {
       return vYr === yr && vMo === mo;
     });
 
+    if (summaryTaxType) {
+      V = V.filter((v) => (v.docs?.taxType || 'Professional Tax') === summaryTaxType);
+    }
+
     return officers.map((o) => {
       const myVisits = V.filter((v) => v.offId === o.id);
-      const paid = myVisits.filter((v) => v.pay === 'paid');
+      const paid = myVisits.filter((v) => v.pay === 'paid' || v.amt > 0);
       const amt = paid.reduce((sum, v) => sum + v.amt, 0);
 
       return {
@@ -294,6 +307,10 @@ export default function AdminReports({ showToast, showPhotoModal }) {
       return vYr === yr && vMo === mo;
     });
 
+    if (summaryTaxType) {
+      V = V.filter((v) => (v.docs?.taxType || 'Professional Tax') === summaryTaxType);
+    }
+
     if (companySearch) {
       const q = companySearch.toLowerCase().trim();
       V = V.filter((v) => v.co.toLowerCase().includes(q));
@@ -313,7 +330,7 @@ export default function AdminReports({ showToast, showPhotoModal }) {
         };
       }
       map[name].total++;
-      if (v.pay === 'paid') {
+      if (v.pay === 'paid' || v.amt > 0) {
         map[name].paid++;
         map[name].amount += v.amt;
       } else {
@@ -358,6 +375,9 @@ export default function AdminReports({ showToast, showPhotoModal }) {
       if (dayOfficer) {
         V = V.filter((v) => v.offId === parseInt(dayOfficer));
       }
+      if (dayTaxType) {
+        V = V.filter((v) => (v.docs?.taxType || 'Professional Tax') === dayTaxType);
+      }
       if (dayCompany.trim()) {
         const cF = dayCompany.trim().toLowerCase();
         V = V.filter((v) => v.co.toLowerCase().includes(cF));
@@ -376,6 +396,9 @@ export default function AdminReports({ showToast, showPhotoModal }) {
       });
       if (monthOfficer) {
         V = V.filter((v) => v.offId === parseInt(monthOfficer));
+      }
+      if (monthTaxType) {
+        V = V.filter((v) => (v.docs?.taxType || 'Professional Tax') === monthTaxType);
       }
       if (monthCompany.trim()) {
         const cF = monthCompany.trim().toLowerCase();
@@ -420,6 +443,20 @@ export default function AdminReports({ showToast, showPhotoModal }) {
                       {o.name}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div className="fg mb12">
+                <label>Tax Type (optional)</label>
+                <select
+                  className="fsel"
+                  style={{ width: '100%' }}
+                  value={dayTaxType}
+                  onChange={(e) => setDayTaxType(e.target.value)}
+                >
+                  <option value="">All Tax Types</option>
+                  <option value="Professional Tax">💼 Professional Tax</option>
+                  <option value="Property Tax">🏢 Property Tax</option>
+                  <option value="Non Tax">🚫 Non Tax</option>
                 </select>
               </div>
               <div className="fg mb12">
@@ -499,6 +536,20 @@ export default function AdminReports({ showToast, showPhotoModal }) {
                 </select>
               </div>
               <div className="fg mb12">
+                <label>Tax Type (optional)</label>
+                <select
+                  className="fsel"
+                  style={{ width: '100%' }}
+                  value={monthTaxType}
+                  onChange={(e) => setMonthTaxType(e.target.value)}
+                >
+                  <option value="">All Tax Types</option>
+                  <option value="Professional Tax">💼 Professional Tax</option>
+                  <option value="Property Tax">🏢 Property Tax</option>
+                  <option value="Non Tax">🚫 Non Tax</option>
+                </select>
+              </div>
+              <div className="fg mb12">
                 <label>Company Name (optional)</label>
                 <input
                   type="text"
@@ -532,17 +583,29 @@ export default function AdminReports({ showToast, showPhotoModal }) {
         <div className="card">
           <div className="ch">
             <h3>📈 Officer-wise Summary</h3>
-            <select
-              className="fsel"
-              value={summaryPeriod}
-              onChange={(e) => setSummaryPeriod(e.target.value)}
-            >
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <select
+                className="fsel"
+                value={summaryTaxType}
+                onChange={(e) => setSummaryTaxType(e.target.value)}
+              >
+                <option value="">All Tax Types</option>
+                <option value="Professional Tax">💼 Professional Tax</option>
+                <option value="Property Tax">🏢 Property Tax</option>
+                <option value="Non Tax">🚫 Non Tax</option>
+              </select>
+              <select
+                className="fsel"
+                value={summaryPeriod}
+                onChange={(e) => setSummaryPeriod(e.target.value)}
+              >
               {summaryMonthOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
             </select>
+            </div>
           </div>
           <div className="cb">
             {officerSummaryRows.length > 0 ? (

@@ -16,6 +16,7 @@ const getTodayLocalDate = () => {
 };
 
 export default function AdminDashboard({ openConfirmationModal, showToast, onRedirect }) {
+  const [taxFilter, setTaxFilter] = useState('all');
   const [stats, setStats] = useState({
     totalVisits: 0,
     todayVisits: 0,
@@ -36,20 +37,25 @@ export default function AdminDashboard({ openConfirmationModal, showToast, onRed
 
   const loadDashboardData = async () => {
     try {
-      const [V, U, A, ATT] = await Promise.all([
+      const [rawV, U, A, ATT] = await Promise.all([
         DB.visits(),
         DB.users(),
         DB.alerts(),
         DB.attendance()
       ]);
+
+      const V = taxFilter === 'all'
+        ? rawV
+        : rawV.filter((v) => (v.docs?.taxType || 'Professional Tax') === taxFilter);
+
       const offs = U.filter((u) => u.role === 'off');
       
       const todayLocal = getTodayLocalDate();
       const tv = V.filter((v) => v.date === todayLocal || (v.ts && v.ts.includes(todayLocal)));
-      const paidVisits = V.filter((v) => v.pay === 'paid');
+      const paidVisits = V.filter((v) => v.pay === 'paid' || v.amt > 0);
       
       const tAmt = paidVisits.reduce((sum, v) => sum + v.amt, 0);
-      const tdAmt = tv.filter((v) => v.pay === 'paid').reduce((sum, v) => sum + v.amt, 0);
+      const tdAmt = tv.filter((v) => v.pay === 'paid' || v.amt > 0).reduce((sum, v) => sum + v.amt, 0);
       const uniqueCompanies = new Set(V.map((v) => v.co.trim().toLowerCase())).size;
 
       const todayAtt = ATT.filter((a) => {
@@ -83,7 +89,7 @@ export default function AdminDashboard({ openConfirmationModal, showToast, onRed
       const activity = offs.map((o) => {
         const myVisitsToday = tv.filter((v) => v.offId === o.id);
         const myCollectionToday = myVisitsToday
-          .filter((v) => v.pay === 'paid')
+          .filter((v) => v.pay === 'paid' || v.amt > 0)
           .reduce((sum, v) => sum + v.amt, 0);
         
         const uniqueCosVisited = [...new Set(myVisitsToday.map((v) => v.co))];
@@ -106,7 +112,7 @@ export default function AdminDashboard({ openConfirmationModal, showToast, onRed
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [taxFilter]);
 
   const handleClearAlerts = () => {
     openConfirmationModal(
@@ -128,7 +134,23 @@ export default function AdminDashboard({ openConfirmationModal, showToast, onRed
   return (
     <div className="view on">
       <div className="pb">
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', margin: 0, whiteSpace: 'nowrap' }}>
+              Tax Type Filter:
+            </label>
+            <select
+              className="fsel"
+              value={taxFilter}
+              onChange={(e) => setTaxFilter(e.target.value)}
+              style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '8px', fontWeight: '600' }}
+            >
+              <option value="all">📂 All Tax Types</option>
+              <option value="Professional Tax">💼 Professional Tax</option>
+              <option value="Property Tax">🏢 Property Tax</option>
+              <option value="Non Tax">🚫 Non Tax</option>
+            </select>
+          </div>
           <button className="btn bo bsm" onClick={loadDashboardData}>
             🔄 Refresh
           </button>

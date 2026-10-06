@@ -33,6 +33,7 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(initialFilters?.payment || '');
+  const [selectedTaxType, setSelectedTaxType] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialFilters?.date || '');
   const [sortOrder, setSortOrder] = useState('date_desc');
 
@@ -66,6 +67,7 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
     setSearchQuery('');
     setSelectedOfficer('');
     setSelectedPayment('');
+    setSelectedTaxType('');
     setSelectedDate('');
     setSortOrder('date_desc');
   };
@@ -79,6 +81,10 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
     
     if (selectedPayment) {
       result = result.filter((v) => v.pay === selectedPayment);
+    }
+
+    if (selectedTaxType) {
+      result = result.filter((v) => (v.docs?.taxType || 'Professional Tax') === selectedTaxType);
     }
     
     if (selectedDate) {
@@ -95,7 +101,9 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
           v.offName.toLowerCase().includes(q) ||
           v.wd.toLowerCase().includes(q) ||
           v.zn.toLowerCase().includes(q) ||
-          (v.asn || '').toLowerCase().includes(q)
+          (v.asn || '').toLowerCase().includes(q) ||
+          (v.docs?.taxType || 'Professional Tax').toLowerCase().includes(q) ||
+          (v.docs?.propertyType || '').toLowerCase().includes(q)
       );
     }
 
@@ -152,6 +160,16 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
               </select>
               <select
                 className="fsel"
+                value={selectedTaxType}
+                onChange={(e) => setSelectedTaxType(e.target.value)}
+              >
+                <option value="">All Tax Types</option>
+                <option value="Professional Tax">💼 Professional Tax</option>
+                <option value="Property Tax">🏢 Property Tax</option>
+                <option value="Non Tax">🚫 Non Tax</option>
+              </select>
+              <select
+                className="fsel"
                 value={selectedPayment}
                 onChange={(e) => setSelectedPayment(e.target.value)}
               >
@@ -197,6 +215,7 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                   <th>Ward</th>
                   <th>Zone</th>
                   <th>Assessment</th>
+                  <th>Tax Type</th>
                   <th>Type</th>
                   <th>Payment</th>
                   <th>Amount</th>
@@ -231,6 +250,16 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                             <span className="bdg db" style={{ fontSize: '10px', marginLeft: '3px' }}>
                               NEW
                             </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className="bdg db" style={{ fontSize: '10.5px' }}>
+                            {v.docs?.taxType || 'Professional Tax'}
+                          </span>
+                          {v.docs?.propertyType && (
+                            <div style={{ fontSize: '10px', color: 'var(--mu)', marginTop: '2px' }}>
+                              ({v.docs.propertyType})
+                            </div>
                           )}
                         </td>
                         <td>
