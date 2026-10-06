@@ -75,11 +75,12 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
   const [visits, setVisits] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchDate, setSearchDate] = useState('');
+  const [searchTaxType, setSearchTaxType] = useState('Professional Tax');
   const [activeShareVisit, setActiveShareVisit] = useState(null);
 
   const loadVisits = async () => {
     try {
-     const data = await DB.todayVisits(user.id);
+      const data = await DB.todayVisits(user.id);
       setVisits(data);
     } catch (err) {
       console.error('Failed to load visits:', err);
@@ -93,10 +94,14 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
   const handleClearFilters = () => {
     setSearchQuery('');
     setSearchDate('');
+    setSearchTaxType('Professional Tax');
   };
 
   const getFilteredVisits = () => {
     let result = [...visits];
+    if (searchTaxType) {
+      result = result.filter((v) => (v.docs?.taxType || 'Professional Tax') === searchTaxType);
+    }
     if (searchDate) {
       result = result.filter((v) => v.date === searchDate || (v.ts && getLocalDateString(v.ts) === searchDate));
     }
@@ -128,6 +133,15 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <select
+            className="fsel"
+            value={searchTaxType}
+            onChange={(e) => setSearchTaxType(e.target.value)}
+          >
+            <option value="Professional Tax">💼 Professional Tax</option>
+            <option value="Property Tax">🏢 Property Tax</option>
+            <option value="Non Tax">🚫 Non Tax</option>
+          </select>
           <input
             type="date"
             className="fsel"
@@ -154,6 +168,7 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
                   <th>Street</th>
                   <th>Ward/Zone</th>
                   <th>Assessment</th>
+                  <th>Tax Type</th>
                   <th>Payment</th>
                   <th>Amount</th>
                   <th>Photo</th>
@@ -185,6 +200,16 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
                             <span className="bdg db" style={{ fontSize: '10px', marginLeft: '4px' }}>
                               NEW
                             </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className="bdg db" style={{ fontSize: '10.5px' }}>
+                            {v.docs?.taxType || 'Professional Tax'}
+                          </span>
+                          {v.docs?.propertyType && (
+                            <div style={{ fontSize: '10px', color: 'var(--mu)', marginTop: '2px' }}>
+                              ({v.docs.propertyType})
+                            </div>
                           )}
                         </td>
                         <td>
@@ -239,6 +264,7 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
                               const contactPerson = v.docs?.contactPerson || '';
                               const email = v.docs?.email || '';
                               const staffCount = v.docs?.staffCount || '';
+                              const taxTypeVal = v.docs?.taxType || 'Professional Tax';
 
                               const origin = window.location.origin;
                               const photoLinks = [];
@@ -258,7 +284,9 @@ export default function MyVisits({ user, showPhotoModal, showToast }) {
                                 photoLinks.push(`RENTAL PHOTO 🏘️ : ${origin}/api/visits/${v.id}/photo/rental`);
                               }
 
-                              let formattedWhatsAppText = `ZONE : ${v.zn.toUpperCase()}
+                              let formattedWhatsAppText = `TAX TYPE : ${taxTypeVal.toUpperCase()}
+
+ZONE : ${v.zn.toUpperCase()}
 
 WARD : ${v.wd}
 
@@ -270,7 +298,7 @@ MOBILE NUMBER : ${v.contact}
 
 E-mail 📩 : ${email}
 
-PROFESSIONAL TAX ASSESSMENT NUMBER : ${v.asn}
+ASSESSMENT NUMBER : ${v.asn}
 
 GST NUMBER : ${gstNo}
 
@@ -354,7 +382,7 @@ REMARKS : ${(v.remarks || (v.pay === 'new_application' ? 'NEW APPLICATION' : v.p
                   })
                 ) : (
                   <tr>
-                    <td colSpan="10" style={{ textAlign: 'center', padding: '30px', color: 'var(--mu)' }}>
+                    <td colSpan="11" style={{ textAlign: 'center', padding: '30px', color: 'var(--mu)' }}>
                       No visits found
                     </td>
                   </tr>
