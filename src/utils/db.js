@@ -1,8 +1,5 @@
 const DEFAULT_BACKEND = 'https://survey-app-7h98.onrender.com/api';
-const API_BASE = (
-  import.meta.env.VITE_API_BASE ||
-  (import.meta.env.DEV ? 'http://localhost:5000/api' : DEFAULT_BACKEND)
-).replace(/\/+$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE || DEFAULT_BACKEND).replace(/\/+$/, '');
 
 async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
