@@ -37,7 +37,7 @@ export default function AdminReports({ showToast, showPhotoModal }) {
   // Day report inputs
   const [dayDate, setDayDate] = useState(new Date().toISOString().split('T')[0]);
   const [dayOfficer, setDayOfficer] = useState('');
-  const [dayTaxType, setDayTaxType] = useState('');
+  const [dayTaxType, setDayTaxType] = useState('Professional Tax');
   const [dayCompany, setDayCompany] = useState('');
   const [daySort, setDaySort] = useState('time');
 
@@ -45,13 +45,13 @@ export default function AdminReports({ showToast, showPhotoModal }) {
   const [monthVal, setMonthVal] = useState(new Date().getMonth());
   const [yearVal, setYearVal] = useState(new Date().getFullYear());
   const [monthOfficer, setMonthOfficer] = useState('');
-  const [monthTaxType, setMonthTaxType] = useState('');
+  const [monthTaxType, setMonthTaxType] = useState('Professional Tax');
   const [monthCompany, setMonthCompany] = useState('');
   const [monthSort, setMonthSort] = useState('time');
 
   // Summaries inputs
   const [summaryPeriod, setSummaryPeriod] = useState('');
-  const [summaryTaxType, setSummaryTaxType] = useState('');
+  const [summaryTaxType, setSummaryTaxType] = useState('Professional Tax');
   const [summaryMonthOptions, setSummaryMonthOptions] = useState([]);
 
   // Company summary search
@@ -446,14 +446,13 @@ export default function AdminReports({ showToast, showPhotoModal }) {
                 </select>
               </div>
               <div className="fg mb12">
-                <label>Tax Type (optional)</label>
+                <label>Tax Type</label>
                 <select
                   className="fsel"
                   style={{ width: '100%' }}
                   value={dayTaxType}
                   onChange={(e) => setDayTaxType(e.target.value)}
                 >
-                  <option value="">All Tax Types</option>
                   <option value="Professional Tax">💼 Professional Tax</option>
                   <option value="Property Tax">🏢 Property Tax</option>
                   <option value="Non Tax">🚫 Non Tax</option>
@@ -536,14 +535,13 @@ export default function AdminReports({ showToast, showPhotoModal }) {
                 </select>
               </div>
               <div className="fg mb12">
-                <label>Tax Type (optional)</label>
+                <label>Tax Type</label>
                 <select
                   className="fsel"
                   style={{ width: '100%' }}
                   value={monthTaxType}
                   onChange={(e) => setMonthTaxType(e.target.value)}
                 >
-                  <option value="">All Tax Types</option>
                   <option value="Professional Tax">💼 Professional Tax</option>
                   <option value="Property Tax">🏢 Property Tax</option>
                   <option value="Non Tax">🚫 Non Tax</option>
@@ -589,7 +587,6 @@ export default function AdminReports({ showToast, showPhotoModal }) {
                 value={summaryTaxType}
                 onChange={(e) => setSummaryTaxType(e.target.value)}
               >
-                <option value="">All Tax Types</option>
                 <option value="Professional Tax">💼 Professional Tax</option>
                 <option value="Property Tax">🏢 Property Tax</option>
                 <option value="Non Tax">🚫 Non Tax</option>

@@ -33,7 +33,7 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(initialFilters?.payment || '');
-  const [selectedTaxType, setSelectedTaxType] = useState('');
+  const [selectedTaxType, setSelectedTaxType] = useState('Professional Tax');
   const [selectedDate, setSelectedDate] = useState(initialFilters?.date || '');
   const [sortOrder, setSortOrder] = useState('date_desc');
 
@@ -67,7 +67,7 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
     setSearchQuery('');
     setSelectedOfficer('');
     setSelectedPayment('');
-    setSelectedTaxType('');
+    setSelectedTaxType('Professional Tax');
     setSelectedDate('');
     setSortOrder('date_desc');
   };
@@ -163,7 +163,6 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                 value={selectedTaxType}
                 onChange={(e) => setSelectedTaxType(e.target.value)}
               >
-                <option value="">All Tax Types</option>
                 <option value="Professional Tax">💼 Professional Tax</option>
                 <option value="Property Tax">🏢 Property Tax</option>
                 <option value="Non Tax">🚫 Non Tax</option>

@@ -16,7 +16,7 @@ const getTodayLocalDate = () => {
 };
 
 export default function AdminDashboard({ openConfirmationModal, showToast, onRedirect }) {
-  const [taxFilter, setTaxFilter] = useState('all');
+  const [taxFilter, setTaxFilter] = useState('Professional Tax');
   const [stats, setStats] = useState({
     totalVisits: 0,
     todayVisits: 0,
@@ -145,7 +145,6 @@ export default function AdminDashboard({ openConfirmationModal, showToast, onRed
               onChange={(e) => setTaxFilter(e.target.value)}
               style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '8px', fontWeight: '600' }}
             >
-              <option value="all">📂 All Tax Types</option>
               <option value="Professional Tax">💼 Professional Tax</option>
               <option value="Property Tax">🏢 Property Tax</option>
               <option value="Non Tax">🚫 Non Tax</option>
