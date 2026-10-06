@@ -49,6 +49,8 @@ const copyImageToClipboard = async (base64String, showToast) => {
 const ZONES = ['North Zone', 'South Zone', 'East Zone', 'West Zone', 'Central Zone'];
 
 export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToast, openConfirmationModal }) {
+  const [taxType, setTaxType] = useState('Professional Tax');
+  const [propertyType, setPropertyType] = useState('');
   const [assessmentNo, setAssessmentNo] = useState('');
   const [company, setCompany] = useState('');
   const [contact, setContact] = useState('');
@@ -661,49 +663,64 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     const coName = company.trim();
     const asmNum = assessmentNo.trim();
     
-    if (!regStatus) {
-      showToast('Select Register or Unregister', 'amber');
-      return;
-    }
-    if (regStatus === 'register') {
-      if (!payStatus) {
-        showToast('Select a Payment Status', 'amber');
+    if (taxType === 'Professional Tax') {
+      if (!regStatus) {
+        showToast('Select Register or Unregister', 'amber');
         return;
       }
-      if (payStatus === 'paid') {
-        if (!payMode) {
-          showToast('Select a Payment Mode', 'amber');
+      if (regStatus === 'register') {
+        if (!payStatus) {
+          showToast('Select a Payment Status', 'amber');
           return;
         }
-        if (!receiptCollected) {
-          showToast('Select Receipt Collection Status', 'amber');
-          return;
+        if (payStatus === 'paid') {
+          if (!payMode) {
+            showToast('Select a Payment Mode', 'amber');
+            return;
+          }
+          if (!receiptCollected) {
+            showToast('Select Receipt Collection Status', 'amber');
+            return;
+          }
+          if (receiptCollected === 'yes' && !receiptPhoto) {
+            showToast('Please capture or upload the Receipt Photo', 'amber');
+            return;
+          }
         }
-        if (receiptCollected === 'yes' && !receiptPhoto) {
-          showToast('Please capture or upload the Receipt Photo', 'amber');
-          return;
+        if (payStatus === 'new_application') {
+          if (!appStatus) {
+            showToast('Select an Application Status', 'amber');
+            return;
+          }
+          if (appStatus === 'doc_collection') {
+            if (hasGST && !gstPhoto) {
+              showToast('Please capture or upload the GST document photo', 'amber');
+              return;
+            }
+            if (hasPAN && !panPhoto) {
+              showToast('Please capture or upload the PAN document photo', 'amber');
+              return;
+            }
+            if (rentalNeed && !rentalPhoto) {
+              showToast('Please capture or upload the Rental Deed document photo', 'amber');
+              return;
+            }
+          }
         }
       }
-      if (payStatus === 'new_application') {
-        if (!appStatus) {
-          showToast('Select an Application Status', 'amber');
-          return;
-        }
-        if (appStatus === 'doc_collection') {
-          if (hasGST && !gstPhoto) {
-            showToast('Please capture or upload the GST document photo', 'amber');
-            return;
-          }
-          if (hasPAN && !panPhoto) {
-            showToast('Please capture or upload the PAN document photo', 'amber');
-            return;
-          }
-          if (rentalNeed && !rentalPhoto) {
-            showToast('Please capture or upload the Rental Deed document photo', 'amber');
-            return;
-          }
-        }
-      }
+    } else {
+      // Property Tax & Non Tax mandatory checks
+      if (!zone) { showToast('Select Zone', 'amber'); return; }
+      if (!ward.trim()) { showToast('Enter Ward No.', 'amber'); return; }
+      if (!asmNum) { showToast('Enter Assessment Number', 'amber'); return; }
+      if (!propertyType) { showToast('Select Property Type', 'amber'); return; }
+      if (!amount) { showToast('Enter Amount', 'amber'); return; }
+      if (!coName) { showToast('Enter Company / Owner Name', 'amber'); return; }
+      if (!contactPerson.trim()) { showToast('Enter Contact Person', 'amber'); return; }
+      if (!contact.trim()) { showToast('Enter Contact / Mobile No.', 'amber'); return; }
+      if (!doorNo.trim()) { showToast('Enter Door No.', 'amber'); return; }
+      if (!street.trim()) { showToast('Enter Street Name', 'amber'); return; }
+      if (!remarks.trim()) { showToast('Enter Remarks', 'amber'); return; }
     }
 
     // Perform duplicate checks
@@ -737,7 +754,8 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
   };
 
   const saveVisit = (coName, asmNum) => {
-    const isNewRegistration = isNewApp || payStatus === 'new_application';
+    const isProf = taxType === 'Professional Tax';
+    const isNewRegistration = isProf ? (isNewApp || payStatus === 'new_application') : false;
     
     const visitData = {
       id: Date.now(),
@@ -751,31 +769,33 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       wd: ward.trim(),
       zn: zone,
       isNew: isNewRegistration,
-      reg: regStatus,
-      pay: regStatus === 'register' ? payStatus : '',
-      amt: regStatus === 'register' && payStatus === 'paid' ? (parseFloat(amount) || 0) : 0,
-      payMode: regStatus === 'register' && payStatus === 'paid' ? payMode : '',
-      receiptCollected: regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '',
-      receiptPhoto: regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '',
-      appStatus: regStatus === 'register' && payStatus === 'new_application' ? appStatus : '',
-      appRemarks: regStatus === 'register' && payStatus === 'new_application' ? remarks : '',
+      reg: isProf ? regStatus : '',
+      pay: isProf ? (regStatus === 'register' ? payStatus : '') : 'paid',
+      amt: isProf ? (regStatus === 'register' && payStatus === 'paid' ? (parseFloat(amount) || 0) : 0) : (parseFloat(amount) || 0),
+      payMode: isProf ? (regStatus === 'register' && payStatus === 'paid' ? payMode : '') : '',
+      receiptCollected: isProf ? (regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '') : '',
+      receiptPhoto: isProf ? (regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '') : '',
+      appStatus: isProf ? (regStatus === 'register' && payStatus === 'new_application' ? appStatus : '') : '',
+      appRemarks: isProf ? (regStatus === 'register' && payStatus === 'new_application' ? remarks : '') : '',
       docs: {
-        gst: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasGST : false,
-        pan: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasPAN : false,
-        rentalNeed: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? rentalNeed : false,
-        gstPhoto: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && hasGST ? gstPhoto : '',
-        panPhoto: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && hasPAN ? panPhoto : '',
-        rentalPhoto: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && rentalNeed ? rentalPhoto : '',
+        gst: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasGST : false) : false,
+        pan: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? hasPAN : false) : false,
+        rentalNeed: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? rentalNeed : false) : false,
+        gstPhoto: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && hasGST ? gstPhoto : '') : '',
+        panPhoto: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && hasPAN ? panPhoto : '') : '',
+        rentalPhoto: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' && rentalNeed ? rentalPhoto : '') : '',
         staffCount: staffCount ? parseInt(staffCount, 10) : 0,
-        periodFrom: regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? periodFrom : '',
+        periodFrom: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? periodFrom : '') : '',
+        taxType: taxType,
+        propertyType: isProf ? '' : propertyType,
         contactPerson: contactPerson.trim(),
         email: email.trim(),
         gstNumber: gstNumber.trim(),
-        payMode: regStatus === 'register' && payStatus === 'paid' ? payMode : '',
-        receiptCollected: regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '',
-        receiptPhoto: regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '',
+        payMode: isProf ? (regStatus === 'register' && payStatus === 'paid' ? payMode : '') : '',
+        receiptCollected: isProf ? (regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '') : '',
+        receiptPhoto: isProf ? (regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '') : '',
       },
-      remarks: regStatus === 'register' ? remarks : remarks,
+      remarks: remarks.trim(),
       desc: description,
       lat: lat || null,
       lng: lng || null,
@@ -789,14 +809,44 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       .then(() => {
         showToast('Visit submitted successfully! ✅', 'green');
         
-        let remarksStr = visitData.remarks || (visitData.pay === 'new_application' ? 'NEW APPLICATION' : visitData.pay);
-        if (visitData.pay === 'paid') {
-          const modeLbl = visitData.payMode === 'online_payment' ? 'ONLINE PAYMENT' : visitData.payMode.toUpperCase();
-          const receiptLbl = visitData.receiptCollected === 'yes' ? 'COLLECTED' : 'NOT COLLECTED';
-          remarksStr = `PAID (₹${visitData.amt}) | MODE: ${modeLbl} | RECEIPT: ${receiptLbl}${visitData.remarks ? ' | ' + visitData.remarks : ''}`;
-        }
+        let formattedWhatsAppText = '';
+        if (!isProf) {
+          formattedWhatsAppText = `TAX TYPE : ${taxType.toUpperCase()}
 
-        const formattedWhatsAppText = `ZONE : ${visitData.zn.toUpperCase()}
+ZONE : ${visitData.zn.toUpperCase()}
+
+WARD : ${visitData.wd}
+
+ASSESSMENT NUMBER : ${visitData.asn}
+
+PROPERTY TYPE : ${(visitData.docs.propertyType || '').toUpperCase()}
+
+AMOUNT : ₹${visitData.amt}
+
+COMPANY / OWNER NAME : ${visitData.co.toUpperCase()}
+
+CONTACT PERSON : ${visitData.docs.contactPerson.toUpperCase()}
+
+MOBILE NUMBER : ${visitData.contact}
+
+E-MAIL 📩 : ${visitData.docs.email || 'N/A'}
+
+DOOR NO : ${visitData.dno}
+
+STREET NAME : ${visitData.st.toUpperCase()}
+
+REMARKS : ${(visitData.remarks || '').toUpperCase()}`;
+        } else {
+          let remarksStr = visitData.remarks || (visitData.pay === 'new_application' ? 'NEW APPLICATION' : visitData.pay);
+          if (visitData.pay === 'paid') {
+            const modeLbl = visitData.payMode === 'online_payment' ? 'ONLINE PAYMENT' : visitData.payMode.toUpperCase();
+            const receiptLbl = visitData.receiptCollected === 'yes' ? 'COLLECTED' : 'NOT COLLECTED';
+            remarksStr = `PAID (₹${visitData.amt}) | MODE: ${modeLbl} | RECEIPT: ${receiptLbl}${visitData.remarks ? ' | ' + visitData.remarks : ''}`;
+          }
+
+          formattedWhatsAppText = `TAX TYPE : ${(visitData.docs.taxType || 'Professional Tax').toUpperCase()}
+
+ZONE : ${visitData.zn.toUpperCase()}
 
 WARD : ${visitData.wd}
 
@@ -815,6 +865,7 @@ GST NUMBER : ${visitData.docs.gstNumber}
 STAFF COUNT : ${visitData.docs.staffCount ? String(visitData.docs.staffCount).padStart(2, '0') : ''}
 
 REMARKS : ${remarksStr.toUpperCase()}`;
+        }
 
         const origin = window.location.origin;
         const photoLinks = [];
@@ -852,6 +903,8 @@ REMARKS : ${remarksStr.toUpperCase()}`;
   };
 
   const resetForm = () => {
+    setTaxType('Professional Tax');
+    setPropertyType('');
     setAssessmentNo('');
     setCompany('');
     setContact('');
@@ -1054,135 +1107,318 @@ REMARKS : ${remarksStr.toUpperCase()}`;
           <div className="card">
             <div className="ch">
               <h3>🏢 Property Details</h3>
-              <span className="muted">Enter assessment no. to check database</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', margin: 0, whiteSpace: 'nowrap' }}>
+                  Tax Type <span className="r">*</span>
+                </label>
+                <select
+                  value={taxType}
+                  onChange={(e) => setTaxType(e.target.value)}
+                  style={{
+                    width: 'auto',
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    borderColor: 'var(--br)',
+                    fontWeight: '500',
+                    background: '#fff'
+                  }}
+                  required
+                >
+                  <option value="Professional Tax">Professional Tax</option>
+                  <option value="Property Tax">Property Tax</option>
+                  <option value="Non Tax">Non Tax</option>
+                </select>
+              </div>
             </div>
             <div className="cb">
-              <div className="fg" style={{ marginBottom: '14px' }}>
-                <label>Assessment Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. WD-2024-001"
-                  value={assessmentNo}
-                  onChange={(e) => handleAssessmentChange(e.target.value)}
-                />
-                {asmResult.show && (
-                  <div className={`asb ${asmResult.found ? 'asf' : 'asn'}`}>
-                    <span dangerouslySetInnerHTML={{ __html: asmResult.text }} />
+              {taxType !== 'Professional Tax' ? (
+                <div>
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Zone <span className="r">*</span></label>
+                      <select
+                        value={zone}
+                        onChange={(e) => setZone(e.target.value)}
+                        required
+                      >
+                        <option value="">Select Zone</option>
+                        {ZONES.map((z) => (
+                          <option key={z} value={z}>{z}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label>Ward No. <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 12"
+                        value={ward}
+                        onChange={(e) => setWard(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
-                )}
 
-              </div>
-              <div className="g2">
-                <div className="fg">
-                  <label>Company / Owner Name <span className="r">*</span></label>
-                  <input
-                    type="text"
-                    placeholder="Company name"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    required
-                  />
+                  <div className="fg" style={{ marginBottom: '14px' }}>
+                    <label>Assessment Number <span className="r">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g. WD-2024-001"
+                      value={assessmentNo}
+                      onChange={(e) => handleAssessmentChange(e.target.value)}
+                      required
+                    />
+                    {asmResult.show && (
+                      <div className={`asb ${asmResult.found ? 'asf' : 'asn'}`}>
+                        <span dangerouslySetInnerHTML={{ __html: asmResult.text }} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Property Type <span className="r">*</span></label>
+                      <select
+                        value={propertyType}
+                        onChange={(e) => setPropertyType(e.target.value)}
+                        required
+                      >
+                        <option value="">Select Property Type</option>
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Education">Education</option>
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label>Amount (₹) <span className="r">*</span></label>
+                      <input
+                        type="number"
+                        placeholder="Enter amount"
+                        min="0"
+                        step="0.01"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Company / Owner Name <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="Company or Owner Name"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Contact Person <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="Contact person name"
+                        value={contactPerson}
+                        onChange={(e) => setContactPerson(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Contact / Mobile No. <span className="r">*</span></label>
+                      <input
+                        type="tel"
+                        placeholder="10-digit mobile number"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        value={contact}
+                        onChange={(e) => setContact(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>E-mail <span className="muted" style={{ fontWeight: 'normal' }}>(Optional)</span></label>
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Door No. <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 14"
+                        value={doorNo}
+                        onChange={(e) => setDoorNo(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Street Name <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="Street name"
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="fg">
+                    <label>Remarks <span className="r">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="Add remarks"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="fg">
-                  <label>Contact Person <span className="r">*</span></label>
-                  <input
-                    type="text"
-                    placeholder="Contact person name"
-                    value={contactPerson}
-                    onChange={(e) => setContactPerson(e.target.value)}
-                    required
-                  />
+              ) : (
+                <div>
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Zone <span className="r">*</span></label>
+                      <select
+                        value={zone}
+                        onChange={(e) => setZone(e.target.value)}
+                        required
+                      >
+                        <option value="">Select Zone</option>
+                        {ZONES.map((z) => (
+                          <option key={z} value={z}>{z}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label>Ward No. <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 12"
+                        value={ward}
+                        onChange={(e) => setWard(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="fg" style={{ marginBottom: '14px' }}>
+                    <label>Assessment Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. WD-2024-001"
+                      value={assessmentNo}
+                      onChange={(e) => handleAssessmentChange(e.target.value)}
+                    />
+                    {asmResult.show && (
+                      <div className={`asb ${asmResult.found ? 'asf' : 'asn'}`}>
+                        <span dangerouslySetInnerHTML={{ __html: asmResult.text }} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="g2">
+                    <div className="fg">
+                      <label>Company / Owner Name <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="Company name"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Contact Person <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="Contact person name"
+                        value={contactPerson}
+                        onChange={(e) => setContactPerson(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Contact / Mobile No. <span className="r">*</span></label>
+                      <input
+                        type="tel"
+                        placeholder="10-digit mobile number"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        value={contact}
+                        onChange={(e) => setContact(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>E-mail</label>
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Door No. <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 14"
+                        value={doorNo}
+                        onChange={(e) => setDoorNo(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Street Name <span className="r">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="Street name"
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>GST Number</label>
+                      <input
+                        type="text"
+                        placeholder="15-digit GSTIN"
+                        maxLength={15}
+                        value={gstNumber}
+                        onChange={(e) => setGstNumber(e.target.value)}
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Staff Count</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 5"
+                        value={staffCount}
+                        onChange={(e) => setStaffCount(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="fg">
-                  <label>Contact / Mobile No. <span class="r">*</span></label>
-                  <input
-                    type="tel"
-                    placeholder="10-digit mobile number"
-                    maxLength={10}
-                    pattern="[0-9]{10}"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="fg">
-                  <label>E-mail</label>
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="fg">
-                  <label>Door No. <span className="r">*</span></label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 14"
-                    value={doorNo}
-                    onChange={(e) => setDoorNo(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="fg">
-                  <label>Street Name <span className="r">*</span></label>
-                  <input
-                    type="text"
-                    placeholder="Street name"
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="fg">
-                  <label>Ward No. <span className="r">*</span></label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 12"
-                    value={ward}
-                    onChange={(e) => setWard(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="fg">
-                  <label>Zone <span className="r">*</span></label>
-                  <select
-                    value={zone}
-                    onChange={(e) => setZone(e.target.value)}
-                    required
-                  >
-                    <option value="">Select Zone</option>
-                    {ZONES.map((z) => (
-                      <option key={z} value={z}>{z}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="fg">
-                  <label>GST Number</label>
-                  <input
-                    type="text"
-                    placeholder="15-digit GSTIN"
-                    maxLength={15}
-                    value={gstNumber}
-                    onChange={(e) => setGstNumber(e.target.value)}
-                  />
-                </div>
-                <div className="fg">
-                  <label>Staff Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 5"
-                    value={staffCount}
-                    onChange={(e) => setStaffCount(e.target.value)}
-                  />
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
           {/* Payment Details */}
-          <div className="card">
+          {taxType === 'Professional Tax' && (
+            <div className="card">
             <div className="ch">
               <h3>💰 Payment Details</h3>
             </div>
@@ -1697,6 +1933,7 @@ REMARKS : ${remarksStr.toUpperCase()}`;
               )}
             </div>
           </div>
+          )}
 
           {/* GPS Location Map */}
           <div className="card">
