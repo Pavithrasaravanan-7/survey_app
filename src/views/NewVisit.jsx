@@ -49,7 +49,7 @@ const copyImageToClipboard = async (base64String, showToast) => {
 const ZONES = ['North Zone', 'South Zone', 'East Zone', 'West Zone', 'Central Zone'];
 
 export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToast, openConfirmationModal }) {
-  const [taxType, setTaxType] = useState('Professional Tax');
+  const [taxType, setTaxType] = useState('');
   const [propertyType, setPropertyType] = useState('');
   const [assessmentNo, setAssessmentNo] = useState('');
   const [company, setCompany] = useState('');
@@ -663,6 +663,11 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
     const coName = company.trim();
     const asmNum = assessmentNo.trim();
     
+    if (!taxType) {
+      showToast('Select Tax Type', 'amber');
+      return;
+    }
+
     if (taxType === 'Professional Tax') {
       if (!regStatus) {
         showToast('Select Register or Unregister', 'amber');
@@ -1125,6 +1130,7 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                   }}
                   required
                 >
+                  <option value="">Select Tax Type</option>
                   <option value="Professional Tax">Professional Tax</option>
                   <option value="Property Tax">Property Tax</option>
                   <option value="Non Tax">Non Tax</option>
@@ -1132,7 +1138,7 @@ REMARKS : ${remarksStr.toUpperCase()}`;
               </div>
             </div>
             <div className="cb">
-              {taxType !== 'Professional Tax' ? (
+              {taxType === 'Property Tax' || taxType === 'Non Tax' ? (
                 <div>
                   <div className="g2" style={{ marginBottom: '14px' }}>
                     <div className="fg">
@@ -1285,7 +1291,7 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                     />
                   </div>
                 </div>
-              ) : (
+              ) : taxType === 'Professional Tax' ? (
                 <div>
                   <div className="g2" style={{ marginBottom: '14px' }}>
                     <div className="fg">
@@ -1411,6 +1417,10 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                       />
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--mu)', fontSize: '13.5px' }}>
+                  Please select a <strong>Tax Type</strong> above to proceed.
                 </div>
               )}
             </div>
