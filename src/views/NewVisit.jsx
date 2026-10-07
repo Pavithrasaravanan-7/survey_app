@@ -79,6 +79,8 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
   const [regStatus, setRegStatus] = useState(''); // 'register' or 'unregister'
   const [payStatus, setPayStatus] = useState(''); // 'paid', 'not_paid', 'new_application'
   const [amount, setAmount] = useState('');
+  const [pendingAmount, setPendingAmount] = useState('');
+  const [amountCollected, setAmountCollected] = useState('');
   const [payMode, setPayMode] = useState(''); // 'cheque', 'online_payment', 'cash'
   const [receiptCollected, setReceiptCollected] = useState(''); // 'yes', 'no'
   const [receiptPhoto, setReceiptPhoto] = useState(null); // base64
@@ -731,7 +733,8 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       if (!ward.trim()) { showToast('Enter Ward No.', 'amber'); return; }
       if (!asmNum) { showToast('Enter Assessment Number', 'amber'); return; }
       if (!propertyType) { showToast('Select Property Type', 'amber'); return; }
-      if (!amount) { showToast('Enter Amount', 'amber'); return; }
+      if (pendingAmount === '' || pendingAmount === null) { showToast('Enter Pending Amount', 'amber'); return; }
+      if (amountCollected === '' || amountCollected === null) { showToast('Enter Amount Collected', 'amber'); return; }
       if (!coName) { showToast('Enter Company / Owner Name', 'amber'); return; }
       if (!contactPerson.trim()) { showToast('Enter Contact Person', 'amber'); return; }
       if (!contact.trim()) { showToast('Enter Contact / Mobile No.', 'amber'); return; }
@@ -788,7 +791,7 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
       isNew: isNewRegistration,
       reg: isProf ? regStatus : '',
       pay: isProf ? (regStatus === 'register' ? payStatus : '') : 'paid',
-      amt: isProf ? (regStatus === 'register' && payStatus === 'paid' ? (parseFloat(amount) || 0) : 0) : (parseFloat(amount) || 0),
+      amt: isProf ? (regStatus === 'register' && payStatus === 'paid' ? (parseFloat(amount) || 0) : 0) : (parseFloat(amountCollected) || 0),
       payMode: isProf ? (regStatus === 'register' && payStatus === 'paid' ? payMode : '') : '',
       receiptCollected: isProf ? (regStatus === 'register' && payStatus === 'paid' ? receiptCollected : '') : '',
       receiptPhoto: isProf ? (regStatus === 'register' && payStatus === 'paid' && receiptCollected === 'yes' ? receiptPhoto : '') : '',
@@ -805,6 +808,8 @@ export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToa
         periodFrom: isProf ? (regStatus === 'register' && payStatus === 'new_application' && appStatus === 'doc_collection' ? periodFrom : '') : '',
         taxType: taxType,
         propertyType: isProf ? '' : propertyType,
+        pendingAmount: isProf ? 0 : (parseFloat(pendingAmount) || 0),
+        amountCollected: isProf ? 0 : (parseFloat(amountCollected) || 0),
         contactPerson: contactPerson.trim(),
         email: email.trim(),
         gstNumber: gstNumber.trim(),
@@ -838,7 +843,9 @@ ASSESSMENT NUMBER : ${visitData.asn}
 
 PROPERTY TYPE : ${(visitData.docs.propertyType || '').toUpperCase()}
 
-AMOUNT : ₹${visitData.amt}
+PENDING AMOUNT : ₹${visitData.docs.pendingAmount || 0}
+
+AMOUNT COLLECTED : ₹${visitData.amt}
 
 COMPANY / OWNER NAME : ${visitData.co.toUpperCase()}
 
@@ -939,6 +946,8 @@ REMARKS : ${remarksStr.toUpperCase()}`;
     setReceiptPhoto(null);
     setReceiptPhotoMeta(null);
     setAmount('');
+    setPendingAmount('');
+    setAmountCollected('');
     setAppStatus('');
     setHasGST(false);
     setGstPhoto(null);
@@ -1209,21 +1218,6 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                       </select>
                     </div>
                     <div className="fg">
-                      <label>Amount (₹) <span className="r">*</span></label>
-                      <input
-                        type="number"
-                        placeholder="Enter amount"
-                        min="0"
-                        step="0.01"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="g2" style={{ marginBottom: '14px' }}>
-                    <div className="fg">
                       <label>Company / Owner Name <span className="r">*</span></label>
                       <input
                         type="text"
@@ -1233,6 +1227,36 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="g2" style={{ marginBottom: '14px' }}>
+                    <div className="fg">
+                      <label>Pending Amount (₹) <span className="r">*</span></label>
+                      <input
+                        type="number"
+                        placeholder="Enter pending amount"
+                        min="0"
+                        step="0.01"
+                        value={pendingAmount}
+                        onChange={(e) => setPendingAmount(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="fg">
+                      <label>Amount Collected (₹) <span className="r">*</span></label>
+                      <input
+                        type="number"
+                        placeholder="Enter amount collected"
+                        min="0"
+                        step="0.01"
+                        value={amountCollected}
+                        onChange={(e) => setAmountCollected(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="g2" style={{ marginBottom: '14px' }}>
                     <div className="fg">
                       <label>Contact Person <span className="r">*</span></label>
                       <input
@@ -1243,9 +1267,6 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                         required
                       />
                     </div>
-                  </div>
-
-                  <div className="g2" style={{ marginBottom: '14px' }}>
                     <div className="fg">
                       <label>Contact / Mobile No. <span className="r">*</span></label>
                       <input
@@ -1258,6 +1279,8 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                         required
                       />
                     </div>
+                  </div>
+                  <div className="g2" style={{ marginBottom: '14px' }}>
                     <div className="fg">
                       <label>E-mail <span className="muted" style={{ fontWeight: 'normal' }}>(Optional)</span></label>
                       <input
@@ -1267,9 +1290,6 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
-                  </div>
-
-                  <div className="g2" style={{ marginBottom: '14px' }}>
                     <div className="fg">
                       <label>Door No. <span className="r">*</span></label>
                       <input
@@ -1280,16 +1300,17 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                         required
                       />
                     </div>
-                    <div className="fg">
-                      <label>Street Name <span className="r">*</span></label>
-                      <input
-                        type="text"
-                        placeholder="Street name"
-                        value={street}
-                        onChange={(e) => setStreet(e.target.value)}
-                        required
-                      />
-                    </div>
+                  </div>
+
+                  <div className="fg" style={{ marginBottom: '14px' }}>
+                    <label>Street Name <span className="r">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="Street name"
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      required
+                    />
                   </div>
 
                   <div className="fg">
