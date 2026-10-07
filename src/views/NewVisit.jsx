@@ -48,6 +48,18 @@ const copyImageToClipboard = async (base64String, showToast) => {
 
 const ZONES = ['North Zone', 'South Zone', 'East Zone', 'West Zone', 'Central Zone'];
 
+const REMARKS_OPTIONS = [
+  'Assessment & Owner Name Mismatch',
+  'Owner Not Available',
+  'Payment To Be Processed',
+  'Permanent Door Closed',
+  'Court case',
+  'Wrong Measurement',
+  'Building Demolished',
+  'Non traceable',
+  'Amount Paid',
+];
+
 export default function NewVisit({ user, lat, lng, accuracy, refreshGPS, showToast, openConfirmationModal }) {
   const [taxType, setTaxType] = useState('');
   const [propertyType, setPropertyType] = useState('');
@@ -1282,13 +1294,16 @@ REMARKS : ${remarksStr.toUpperCase()}`;
 
                   <div className="fg">
                     <label>Remarks <span className="r">*</span></label>
-                    <input
-                      type="text"
-                      placeholder="Add remarks"
+                    <select
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
                       required
-                    />
+                    >
+                      <option value="">Select Remarks</option>
+                      {REMARKS_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               ) : taxType === 'Professional Tax' ? (
@@ -1898,12 +1913,15 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                   <div className="g2" style={{ marginTop: '13px' }}>
                     <div className="fg">
                       <label>Remarks</label>
-                      <input
-                        type="text"
-                        placeholder="Add remarks"
+                      <select
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
-                      />
+                      >
+                        <option value="">Select Remarks</option>
+                        {REMARKS_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="fg">
                       <label>Description</label>
@@ -1923,12 +1941,15 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                 <div className="g2">
                   <div className="fg">
                     <label>Remarks</label>
-                    <input
-                      type="text"
-                      placeholder="Add remarks"
+                    <select
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
-                    />
+                    >
+                      <option value="">Select Remarks</option>
+                      {REMARKS_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="fg">
                     <label>Description</label>

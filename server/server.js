@@ -39,6 +39,7 @@ const formatDate = (d) => {
   return String(d);
 };
 
+
 // Map a DB `visits` row back to the camelCase shape the frontend expects
 const rowToVisit = (r) => ({
   id: Number(r.id),
