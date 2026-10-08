@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "echo \"No build step required for backend\""
+    "build": "cd .. && npm install && npm run build"
   },
   "dependencies": {
     "cors": "^2.8.5",
