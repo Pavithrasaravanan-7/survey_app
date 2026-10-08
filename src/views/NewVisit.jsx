@@ -1934,15 +1934,12 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                   <div className="g2" style={{ marginTop: '13px' }}>
                     <div className="fg">
                       <label>Remarks</label>
-                      <select
+                      <input
+                        type="text"
+                        placeholder="Enter remarks"
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
-                      >
-                        <option value="">Select Remarks</option>
-                        {REMARKS_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <div className="fg">
                       <label>Description</label>
@@ -1962,15 +1959,12 @@ REMARKS : ${remarksStr.toUpperCase()}`;
                 <div className="g2">
                   <div className="fg">
                     <label>Remarks</label>
-                    <select
+                    <input
+                      type="text"
+                      placeholder="Enter remarks"
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
-                    >
-                      <option value="">Select Remarks</option>
-                      {REMARKS_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                    />
                   </div>
                   <div className="fg">
                     <label>Description</label>
