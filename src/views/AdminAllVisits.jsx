@@ -25,6 +25,23 @@ const getLocalDateString = (tsStr) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getYesterdayLocalDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function AdminAllVisits({ showPhotoModal, initialFilters, clearInitialFilters }) {
   const [visits, setVisits] = useState([]);
   const [officers, setOfficers] = useState([]);
@@ -177,11 +194,65 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                 <option value="not_paid">❌ Unpaid</option>
                 <option value="new_application">📄 New Application</option>
               </select>
+              <div style={{ display: 'inline-flex', alignItems: 'center', background: '#e2e8f0', padding: '3px', borderRadius: '8px', gap: '3px' }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: !selectedDate ? 'var(--bl)' : 'transparent',
+                    color: !selectedDate ? '#fff' : '#475569',
+                    boxShadow: !selectedDate ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                  }}
+                  onClick={() => setSelectedDate('')}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: selectedDate === getTodayLocalDate() ? 'var(--bl)' : 'transparent',
+                    color: selectedDate === getTodayLocalDate() ? '#fff' : '#475569',
+                    boxShadow: selectedDate === getTodayLocalDate() ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                  }}
+                  onClick={() => setSelectedDate(getTodayLocalDate())}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: selectedDate === getYesterdayLocalDate() ? 'var(--bl)' : 'transparent',
+                    color: selectedDate === getYesterdayLocalDate() ? '#fff' : '#475569',
+                    boxShadow: selectedDate === getYesterdayLocalDate() ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                  }}
+                  onClick={() => setSelectedDate(getYesterdayLocalDate())}
+                >
+                  Yesterday
+                </button>
+              </div>
               <input
                 type="date"
                 className="fsel"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                title="Select custom date"
               />
               <select
                 className="fsel"
