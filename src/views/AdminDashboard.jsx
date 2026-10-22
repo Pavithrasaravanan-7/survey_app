@@ -229,66 +229,20 @@ export default function AdminDashboard({ openConfirmationModal, showToast, onRed
             </div>
 
             {/* Date / Period Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', margin: 0, whiteSpace: 'nowrap' }}>
                 Period:
               </label>
-              <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '3px', borderRadius: '10px', gap: '3px' }}>
-                <button
-                  type="button"
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '13px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: dateFilter === 'all' ? 'var(--bl)' : 'transparent',
-                    color: dateFilter === 'all' ? '#fff' : '#475569',
-                    boxShadow: dateFilter === 'all' ? '0 2px 6px rgba(26,86,219,0.3)' : 'none',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onClick={() => setDateFilter('all')}
-                >
-                  🌐 All Records
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '13px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: dateFilter === 'today' ? 'var(--bl)' : 'transparent',
-                    color: dateFilter === 'today' ? '#fff' : '#475569',
-                    boxShadow: dateFilter === 'today' ? '0 2px 6px rgba(26,86,219,0.3)' : 'none',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onClick={() => setDateFilter('today')}
-                >
-                  📅 Today
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '13px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: dateFilter === 'yesterday' ? 'var(--bl)' : 'transparent',
-                    color: dateFilter === 'yesterday' ? '#fff' : '#475569',
-                    boxShadow: dateFilter === 'yesterday' ? '0 2px 6px rgba(26,86,219,0.3)' : 'none',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onClick={() => setDateFilter('yesterday')}
-                >
-                  ⏪ Yesterday
-                </button>
-              </div>
+              <select
+                className="fsel"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '8px', fontWeight: '600' }}
+              >
+                <option value="all">🌐 All Records</option>
+                <option value="today">📅 Today</option>
+                <option value="yesterday">⏪ Yesterday</option>
+              </select>
             </div>
           </div>
 

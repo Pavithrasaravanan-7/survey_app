@@ -194,59 +194,37 @@ export default function AdminAllVisits({ showPhotoModal, initialFilters, clearIn
                 <option value="not_paid">❌ Unpaid</option>
                 <option value="new_application">📄 New Application</option>
               </select>
-              <div style={{ display: 'inline-flex', alignItems: 'center', background: '#e2e8f0', padding: '3px', borderRadius: '8px', gap: '3px' }}>
-                <button
-                  type="button"
-                  style={{
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: !selectedDate ? 'var(--bl)' : 'transparent',
-                    color: !selectedDate ? '#fff' : '#475569',
-                    boxShadow: !selectedDate ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
-                  }}
-                  onClick={() => setSelectedDate('')}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: selectedDate === getTodayLocalDate() ? 'var(--bl)' : 'transparent',
-                    color: selectedDate === getTodayLocalDate() ? '#fff' : '#475569',
-                    boxShadow: selectedDate === getTodayLocalDate() ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
-                  }}
-                  onClick={() => setSelectedDate(getTodayLocalDate())}
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: selectedDate === getYesterdayLocalDate() ? 'var(--bl)' : 'transparent',
-                    color: selectedDate === getYesterdayLocalDate() ? '#fff' : '#475569',
-                    boxShadow: selectedDate === getYesterdayLocalDate() ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
-                  }}
-                  onClick={() => setSelectedDate(getYesterdayLocalDate())}
-                >
-                  Yesterday
-                </button>
-              </div>
+              <select
+                className="fsel"
+                value={
+                  selectedDate === getTodayLocalDate()
+                    ? 'today'
+                    : selectedDate === getYesterdayLocalDate()
+                    ? 'yesterday'
+                    : selectedDate
+                    ? 'custom'
+                    : 'all'
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'today') {
+                    setSelectedDate(getTodayLocalDate());
+                  } else if (val === 'yesterday') {
+                    setSelectedDate(getYesterdayLocalDate());
+                  } else if (val === 'all') {
+                    setSelectedDate('');
+                  }
+                }}
+              >
+                <option value="all">🌐 All Records</option>
+                <option value="today">📅 Today</option>
+                <option value="yesterday">⏪ Yesterday</option>
+                {selectedDate &&
+                  selectedDate !== getTodayLocalDate() &&
+                  selectedDate !== getYesterdayLocalDate() && (
+                    <option value="custom">🗓️ Custom ({selectedDate})</option>
+                  )}
+              </select>
               <input
                 type="date"
                 className="fsel"
