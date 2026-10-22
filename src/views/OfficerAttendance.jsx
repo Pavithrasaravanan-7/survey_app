@@ -30,7 +30,21 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
   const routeMapInstanceRef = useRef(null);
   const routeLayersRef = useRef([]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const getTodayLocalDate = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const todayStr = getTodayLocalDate();
+
+  // 10:00 AM cutoff check (must mark attendance before 10 AM)
+  const checkIsPast10AM = () => {
+    const now = new Date();
+    return now.getHours() >= 10;
+  };
 
   const normalizeDate = (value) => {
     if (!value) return '';
@@ -75,7 +89,35 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
       const list = normalizedAtt.filter((a) => Number(a.offId) === Number(user.id));
       setHistory(list);
 
-      const todayRec = list.find((a) => a.date === todayStr);
+      let todayRec = list.find((a) => a.date === todayStr);
+
+      // Auto-mark Absent if past 10:00 AM and no attendance recorded yet today
+      if (!todayRec && checkIsPast10AM()) {
+        const autoAbsentRecord = {
+          id: Date.now(),
+          offId: user.id,
+          offName: user.name,
+          date: todayStr,
+          status: 'absent',
+          presentTime: '',
+          remarks: 'Auto-marked Absent (Not submitted before 10:00 AM)',
+          lat: lat || '',
+          lng: lng || '',
+          photo: null,
+          ts: new Date().toISOString(),
+        };
+
+        try {
+          await DB.saveAttendance(autoAbsentRecord);
+          todayRec = autoAbsentRecord;
+          const freshAtt = (await DB.attendance()).map(normalizeAttendanceRecord);
+          setHistory(freshAtt.filter((a) => Number(a.offId) === Number(user.id)));
+          showToast('Attendance cut-off (10:00 AM) passed. Automatically marked as Absent.', 'amber');
+        } catch (autoErr) {
+          console.error('Failed to auto-save absent record:', autoErr);
+        }
+      }
+
       setTodayRecord(todayRec || null);
       if (todayRec) {
         setAttStatus(todayRec.status);
@@ -97,7 +139,13 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
 
   useEffect(() => {
     loadAllData();
-  }, [user.id]);
+    const timer = setInterval(() => {
+      if (!todayRecord && checkIsPast10AM()) {
+        loadAllData();
+      }
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [user.id, todayRecord]);
 
   // Load / Update route map
   useEffect(() => {
@@ -415,8 +463,12 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
   };
 
   const selectAttOption = (status) => {
+    if (status === 'present' && checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present')) {
+      showToast('Attendance cut-off time (10:00 AM) has passed. You cannot mark Present for today.', 'red');
+      return;
+    }
     setAttStatus(status);
-    if (status !== 'absent') {
+    if (status === 'present') {
       setPresentTime(new Date().toLocaleTimeString('en-IN'));
     } else {
       setPresentTime('');
@@ -430,7 +482,15 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
 
   const handleSaveAttendance = () => {
     if (!attStatus) {
-      showToast('Select Present, Absent or In Office', 'amber');
+      showToast('Select Present or Absent', 'amber');
+      return;
+    }
+    if (attStatus === 'present' && checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present')) {
+      showToast('Attendance cut-off time (10:00 AM) has passed. You cannot mark Present for today.', 'red');
+      return;
+    }
+    if (todayRecord && todayRecord.status === 'absent' && attStatus === 'present') {
+      showToast('Attendance is already recorded as Absent and cannot be changed to Present.', 'red');
       return;
     }
     if (attStatus === 'absent' && !remarks.trim()) {
@@ -452,17 +512,17 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
       offName: user.name,
       date: todayStr,
       status: attStatus,
-      presentTime: attStatus !== 'absent' ? (presentTime || new Date().toLocaleTimeString('en-IN')) : '',
+      presentTime: attStatus === 'present' ? (presentTime || new Date().toLocaleTimeString('en-IN')) : '',
       remarks: remarks.trim(),
       lat,
       lng,
-      photo: attStatus !== 'absent' ? (capturedPhoto || null) : null,
+      photo: attStatus === 'present' ? (capturedPhoto || null) : null,
       ts: new Date().toISOString(),
     };
 
     DB.saveAttendance(attendanceRecord)
       .then(() => {
-        showToast(`Attendance saved: ${ATLBL[attStatus]}`, 'green');
+        showToast(`Attendance saved: ${ATLBL[attStatus] || attStatus}`, 'green');
         loadAllData();
       })
       .catch((err) => {
@@ -554,25 +614,62 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
               </div>
             )}
 
-            {/* Attendance Options */}
+            {/* Cut-off Notice Banner */}
+            {checkIsPast10AM() ? (
+              <div
+                style={{
+                  background: 'var(--rdl)',
+                  color: 'var(--rd)',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: '1px solid rgba(224, 36, 36, 0.25)',
+                }}
+              >
+                <span>⚠️</span>
+                <span>Cut-off passed: Attendance was required before 10:00 AM. Unmarked attendance has been automatically set as Absent.</span>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: 'var(--bll)',
+                  color: 'var(--bl)',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: '1px solid rgba(26, 86, 219, 0.2)',
+                }}
+              >
+                <span>⏰</span>
+                <span>Daily Cut-off: Attendance must be submitted before 10:00 AM. If not submitted by 10:00 AM, it will be automatically set to Absent.</span>
+              </div>
+            )}
+
+            {/* Attendance Options (In Office removed) */}
             <div className="aopt">
               <div
-                className={`aob ${attStatus === 'present' ? 'sel-present' : ''}`}
+                className={`aob ${attStatus === 'present' ? 'sel-present' : ''} ${checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present') ? 'dis' : ''}`}
                 onClick={() => selectAttOption('present')}
+                style={checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                title={checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present') ? 'Cut-off time (10:00 AM) has passed' : ''}
               >
-                <span>🟢</span>Present
+                <span>🟢</span>Present {checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present') ? '(Closed at 10 AM)' : ''}
               </div>
               <div
                 className={`aob ${attStatus === 'absent' ? 'sel-absent' : ''}`}
                 onClick={() => selectAttOption('absent')}
               >
                 <span>🔴</span>Absent
-              </div>
-              <div
-                className={`aob ${attStatus === 'office' ? 'sel-office' : ''}`}
-                onClick={() => selectAttOption('office')}
-              >
-                <span>🟡</span>In Office
               </div>
             </div>
 
@@ -697,7 +794,7 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
             )}
 
             <div className="g2" style={{ marginTop: '13px' }}>
-              {attStatus && attStatus !== 'absent' && (
+              {attStatus === 'present' && (
                 <div className="fg">
                   <label>Present Time</label>
                   <input type="text" value={presentTime} readOnly />
@@ -717,8 +814,13 @@ export default function OfficerAttendance({ user, lat, lng, refreshGPS, showToas
             </div>
 
             <div style={{ marginTop: '13px', textAlign: 'right' }}>
-              <button type="button" className="btn bb" onClick={handleSaveAttendance}>
-                💾 Save Attendance
+              <button
+                type="button"
+                className="btn bb"
+                onClick={handleSaveAttendance}
+                disabled={checkIsPast10AM() && (!todayRecord || todayRecord.status !== 'present') && attStatus === 'present'}
+              >
+                {todayRecord && todayRecord.status === 'absent' ? '💾 Update Absence Remarks' : '💾 Save Attendance'}
               </button>
             </div>
 

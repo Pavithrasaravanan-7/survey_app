@@ -357,7 +357,58 @@ const rowToAttendance = (a) => ({
   ts: a.ts,
 });
 
+// Auto-mark absent for officers who have not marked attendance by 10:00 AM
+const getIndiaTimeParts = () => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(new Date());
+  const m = {};
+  for (const p of parts) m[p.type] = p.value;
+  return {
+    todayStr: `${m.year}-${m.month}-${m.day}`,
+    hour: parseInt(m.hour, 10),
+    minute: parseInt(m.minute, 10),
+  };
+};
+
+const autoMarkAbsentIfPast10AM = async () => {
+  try {
+    const { todayStr, hour } = getIndiaTimeParts();
+    if (hour >= 10) {
+      const officersRes = await query(`SELECT id, name FROM users WHERE role = 'off'`);
+      for (const off of officersRes.rows) {
+        const attRes = await query(
+          `SELECT id FROM attendance WHERE off_id = $1 AND date = $2`,
+          [off.id, todayStr]
+        );
+        if (attRes.rows.length === 0) {
+          const autoId = Date.now() + Math.floor(Math.random() * 1000);
+          await query(
+            `INSERT INTO attendance (id, off_id, off_name, date, status, present_time, remarks, photo, lat, lng, ts)
+             VALUES ($1, $2, $3, $4, 'absent', '', 'Auto-marked Absent (Not submitted before 10:00 AM)', null, '', '', now())
+             ON CONFLICT (off_id, date) DO NOTHING`,
+            [autoId, off.id, off.name, todayStr]
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Auto attendance check error:', err);
+  }
+};
+
+setInterval(autoMarkAbsentIfPast10AM, 60000);
+
 app.get('/api/attendance', async (req, res) => {
+  await autoMarkAbsentIfPast10AM();
   const { rows } = await query(`SELECT * FROM attendance ORDER BY date DESC`);
   res.json(rows.map(rowToAttendance));
 });
@@ -366,6 +417,18 @@ app.post('/api/attendance', async (req, res) => {
   const record = req.body;
   if (!record.offId || !record.date || !record.status) {
     return res.status(400).json({ error: 'OffId, date, and status are required' });
+  }
+
+  if (record.status === 'office') {
+    return res.status(400).json({ error: 'In Office option has been removed' });
+  }
+
+  const { todayStr, hour } = getIndiaTimeParts();
+  if (record.status === 'present' && record.date === todayStr && hour >= 10) {
+    const existing = await query(`SELECT status FROM attendance WHERE off_id = $1 AND date = $2`, [record.offId, record.date]);
+    if (!existing.rows.length || existing.rows[0].status !== 'present') {
+      return res.status(400).json({ error: 'Attendance cut-off time (10:00 AM) has passed. Cannot mark Present.' });
+    }
   }
 
   const id = record.id || Date.now();
