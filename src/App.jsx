@@ -120,7 +120,7 @@ export default function App() {
       if (currentUser.role === 'admin') {
         setCurrentTab('dash');
       } else {
-        setCurrentTab('nv');
+        setCurrentTab('att');
       }
     } else {
       setCurrentTab('');
@@ -294,14 +294,13 @@ export default function App() {
           );
         default:
           return (
-            <NewVisit
+            <OfficerAttendance
               user={currentUser}
               lat={gps.lat}
               lng={gps.lng}
-              accuracy={gps.accuracy}
               refreshGPS={refreshGPSManually}
               showToast={showToast}
-              openConfirmationModal={openConfirmationModal}
+              showPhotoModal={setPreviewPhoto}
             />
           );
       }

@@ -543,6 +543,39 @@ input[readonly] {
   color: var(--mu);
   cursor: not-allowed;
 }
+.pw-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.pw-wrap input {
+  padding-right: 42px;
+}
+.pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mu);
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
+  line-height: 1;
+}
+.pw-toggle:hover {
+  color: var(--bl);
+  background: rgba(0, 0, 0, 0.05);
+}
+.pw-toggle:focus {
+  outline: none;
+}
 textarea {
   resize: vertical;
   min-height: 80px;

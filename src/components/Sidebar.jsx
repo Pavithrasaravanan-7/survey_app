@@ -20,6 +20,12 @@ export default function Sidebar({
     <>
       <div className="sbsec">Menu</div>
       <div
+        className={`ni ${currentTab === 'att' ? 'on' : ''}`}
+        onClick={() => handleTabClick('att')}
+      >
+        ✅ Attendance
+      </div>
+      <div
         className={`ni ${currentTab === 'nv' ? 'on' : ''}`}
         onClick={() => handleTabClick('nv')}
       >
@@ -30,12 +36,6 @@ export default function Sidebar({
         onClick={() => handleTabClick('mv')}
       >
         📋 My Visits
-      </div>
-      <div
-        className={`ni ${currentTab === 'att' ? 'on' : ''}`}
-        onClick={() => handleTabClick('att')}
-      >
-        ✅ Attendance
       </div>
     </>
   );
