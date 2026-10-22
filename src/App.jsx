@@ -17,9 +17,39 @@ import AdminReports from './views/AdminReports';
 import AdminAttendance from './views/AdminAttendance';
 import AdminSettings from './views/AdminSettings';
 
+const getValidTab = (user, tab) => {
+  if (!user) return '';
+  const adminTabs = ['dash', 'vis', 'offs', 'track', 'rpt', 'att', 'set'];
+  const officerTabs = ['att', 'nv', 'mv'];
+  if (user.role === 'admin') {
+    return adminTabs.includes(tab) ? tab : 'dash';
+  } else {
+    return officerTabs.includes(tab) ? tab : 'att';
+  }
+};
+
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [currentTab, setCurrentTab] = useState('');
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('survey_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [currentTab, setCurrentTab] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('survey_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+      if (!user) return '';
+      const savedTab = localStorage.getItem('survey_tab');
+      return getValidTab(user, savedTab);
+    } catch (e) {
+      return '';
+    }
+  });
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Modals and notifications states
@@ -36,7 +66,14 @@ export default function App() {
   });
 
   const [previewPhoto, setPreviewPhoto] = useState(null); // stores visit details for photo viewer
-  const [visFilters, setVisFilters] = useState(null);
+  const [visFilters, setVisFilters] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('survey_vis_filters');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   // Geolocation state
   const [gps, setGps] = useState({ lat: null, lng: null, accuracy: null });
@@ -114,18 +151,41 @@ export default function App() {
     };
   }, [currentUser]);
 
-  // Set default tabs on login
+  // Validate and synchronize tab on user change
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.role === 'admin') {
-        setCurrentTab('dash');
-      } else {
-        setCurrentTab('att');
+      const savedTab = localStorage.getItem('survey_tab');
+      const valid = getValidTab(currentUser, currentTab || savedTab);
+      if (currentTab !== valid) {
+        setCurrentTab(valid);
       }
+      try {
+        localStorage.setItem('survey_tab', valid);
+      } catch (e) {}
     } else {
       setCurrentTab('');
     }
   }, [currentUser]);
+
+  // Persist currentTab whenever it changes
+  useEffect(() => {
+    if (currentUser && currentTab) {
+      try {
+        localStorage.setItem('survey_tab', currentTab);
+      } catch (e) {}
+    }
+  }, [currentUser, currentTab]);
+
+  // Persist visFilters across reloads in sessionStorage
+  useEffect(() => {
+    try {
+      if (visFilters) {
+        sessionStorage.setItem('survey_vis_filters', JSON.stringify(visFilters));
+      } else {
+        sessionStorage.removeItem('survey_vis_filters');
+      }
+    } catch (e) {}
+  }, [visFilters]);
 
   // Toast controls
   const showToast = (msg, type = 'blue') => {
@@ -163,6 +223,18 @@ export default function App() {
     setModalState((prev) => ({ ...prev, isOpen: false }));
   };
 
+  const handleLoginSuccess = (user) => {
+    try {
+      localStorage.setItem('survey_user', JSON.stringify(user));
+    } catch (e) {}
+    setCurrentUser(user);
+    const initialTab = user.role === 'admin' ? 'dash' : 'att';
+    setCurrentTab(initialTab);
+    try {
+      localStorage.setItem('survey_tab', initialTab);
+    } catch (e) {}
+  };
+
   const handleLogout = () => {
     openConfirmationModal(
       '🚪',
@@ -173,7 +245,14 @@ export default function App() {
           navigator.geolocation.clearWatch(watchId.current);
           watchId.current = null;
         }
+        try {
+          localStorage.removeItem('survey_user');
+          localStorage.removeItem('survey_tab');
+          sessionStorage.removeItem('survey_vis_filters');
+        } catch (e) {}
         setCurrentUser(null);
+        setCurrentTab('');
+        setVisFilters(null);
         setPreviewPhoto(null);
         showToast('Logged out successfully', 'blue');
       },
@@ -332,7 +411,7 @@ export default function App() {
   if (!currentUser) {
     return (
       <>
-        <Login onLoginSuccess={setCurrentUser} showToast={showToast} />
+        <Login onLoginSuccess={handleLoginSuccess} showToast={showToast} />
         <ToastContainer toasts={toasts} onRemove={removeToast} />
       </>
     );
